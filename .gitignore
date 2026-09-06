@@ -1,0 +1,4 @@
+# ビルド成果物（scripts/build-standalone.mjs で再生成できる）
+dist/
+
+.DS_Store

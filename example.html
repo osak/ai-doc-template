@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>イベント配信基盤 リプレース設計書 — AI Doc Template サンプル</title>
+<link rel="stylesheet" href="assets/doc.css">
+<script>
+  window.DOC_CONFIG = {
+    highlight:   { enable: true },
+    themeToggle: { enable: true }
+  };
+</script>
+</head>
+
+<body>
+<a class="doc-skip-link" href="#main">本文へスキップ</a>
+
+<div class="doc-layout">
+  <aside class="doc-toc" id="doc-toc"></aside>
+
+  <div class="doc-main" id="main">
+
+    <header class="doc-header">
+      <p class="doc-eyebrow">設計書 / Design Doc</p>
+      <h1>イベント配信基盤のリプレース設計</h1>
+      <p class="doc-subtitle">既存の RDB ポーリング方式を Kafka ベースの配信基盤へ置き換える。
+      本書は移行の設計判断と段階的な切替手順をまとめたものである。</p>
+
+      <dl class="doc-meta">
+        <div><dt>作成日</dt><dd>2026-09-06</dd></div>
+        <div><dt>バージョン</dt><dd>1.2</dd></div>
+        <div><dt>対象読者</dt><dd>バックエンド / SRE</dd></div>
+        <div><dt>ステータス</dt><dd><span class="badge badge-success">レビュー済み</span></dd></div>
+      </dl>
+    </header>
+
+    <article class="doc-body">
+
+      <p class="lead">現行のイベント配信は 5 秒間隔の RDB ポーリングで実装されており、
+      配信遅延の中央値が 3.1 秒、ピーク時には 12 秒に達している。
+      本書では Kafka を用いた push 型配信への移行方針、互換性の担保、
+      および 4 週間の段階的切替計画を示す。</p>
+
+      <h2>背景と課題</h2>
+
+      <p>イベント配信は 2021 年の実装以来、<code>events</code> テーブルを
+      各コンシューマがポーリングする方式を採ってきた。導入当初は日次 20 万件だった
+      イベント量が現在は 1,400 万件に達し、以下の問題が顕在化している。</p>
+
+      <ul>
+        <li><strong>配信遅延</strong> — ポーリング間隔が遅延の下限を決めてしまう</li>
+        <li><strong>DB 負荷</strong> — コンシューマ 18 系統 × 5 秒間隔でプライマリに常時負荷がかかる</li>
+        <li><strong>重複処理</strong> — 取得と既読更新が非アトミックで、まれに二重配信が起きる</li>
+      </ul>
+
+      <div class="doc-grid">
+        <div class="card">
+          <span class="stat">
+            <span class="stat-value">3.1s</span>
+            <span class="stat-label">現行の配信遅延（中央値）</span>
+          </span>
+        </div>
+        <div class="card">
+          <span class="stat">
+            <span class="stat-value">1,400万</span>
+            <span class="stat-label">日次イベント数</span>
+          </span>
+        </div>
+        <div class="card">
+          <span class="stat">
+            <span class="stat-value">18</span>
+            <span class="stat-label">コンシューマ系統数</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="callout callout-warn" data-title="制約">
+        <p>移行期間中も既存コンシューマは無停止で動作し続ける必要がある。
+        ダウンタイムを伴う一括切替は選択肢に入らない。</p>
+      </div>
+
+      <h2>全体構成</h2>
+
+      <p>Outbox パターンでアプリケーションのトランザクションに書き込み、
+      CDC で Kafka に流す。コンシューマは Kafka から読むか、
+      移行期間中は互換レイヤ経由で従来どおり RDB から読むこともできる。</p>
+
+      <div class="mermaid">
+flowchart LR
+  App[アプリケーション] -->|1 トランザクション| DB[(PostgreSQL)]
+  DB -->|CDC| Relay[Debezium Connect]
+  Relay --> K[(Kafka)]
+  K --> C1[コンシューマ A]
+  K --> C2[コンシューマ B]
+  K --> Compat[互換レイヤ]
+  Compat -.移行期間のみ.-> Legacy[既存コンシューマ]
+      </div>
+
+      <h3>採用技術の比較</h3>
+
+      <table>
+        <caption>表 1: 配信基盤候補の比較（2026-08 時点の社内検証結果）</caption>
+        <thead>
+          <tr>
+            <th scope="col">候補</th>
+            <th scope="col">配信遅延 p99</th>
+            <th scope="col" class="num">運用コスト/月</th>
+            <th scope="col">順序保証</th>
+            <th scope="col">評価</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Kafka (MSK)</th>
+            <td>48&nbsp;ms</td>
+            <td class="num">¥182,000</td>
+            <td>パーティション単位</td>
+            <td><span class="badge badge-success">採用</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Amazon SQS FIFO</th>
+            <td>110&nbsp;ms</td>
+            <td class="num">¥96,000</td>
+            <td>メッセージグループ単位</td>
+            <td><span class="badge">次点</span></td>
+          </tr>
+          <tr>
+            <th scope="row">NATS JetStream</th>
+            <td>22&nbsp;ms</td>
+            <td class="num">¥64,000</td>
+            <td>ストリーム単位</td>
+            <td><span class="badge badge-warn">運用実績なし</span></td>
+          </tr>
+          <tr>
+            <th scope="row">現行（RDB ポーリング）</th>
+            <td>12,000&nbsp;ms</td>
+            <td class="num">¥0</td>
+            <td>あり</td>
+            <td><span class="badge badge-danger">要件未達</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Kafka を採用した決め手は、既に検索基盤とログ基盤で運用実績があり、
+      監視・アラートの資産をそのまま流用できる点である。</p>
+
+      <h2>実装</h2>
+
+      <h3>Outbox への書き込み</h3>
+
+      <p>ドメインイベントは業務データと同一トランザクションで
+      <code>event_outbox</code> に書き込む。アプリケーション側では
+      <code>Publish</code> の呼び出しがトランザクションの内側であることを
+      型で強制する。</p>
+
+      <figure class="code-block" data-filename="internal/event/outbox.go">
+<pre><code class="language-go">// Publisher はトランザクション内でのみ取得できる。
+// これにより Outbox 書き込みの取りこぼしをコンパイル時に防ぐ。
+type Publisher struct {
+	tx pgx.Tx
+}
+
+func (p *Publisher) Publish(ctx context.Context, ev Event) error {
+	payload, err := json.Marshal(ev.Payload)
+	if err != nil {
+		return fmt.Errorf("marshal payload: %w", err)
+	}
+
+	_, err = p.tx.Exec(ctx, `
+		INSERT INTO event_outbox (id, aggregate_id, type, payload, occurred_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`, ev.ID, ev.AggregateID, ev.Type, payload, ev.OccurredAt)
+	if err != nil {
+		return fmt.Errorf("insert outbox: %w", err)
+	}
+	return nil
+}</code></pre>
+        <figcaption>Outbox への書き込み。<code>tx</code> を外から差し替えられないよう非公開にしている。</figcaption>
+      </figure>
+
+      <h3>コンシューマ側の冪等性</h3>
+
+      <p>Kafka は at-least-once 配信のため、コンシューマは冪等でなければならない。
+      処理済みイベント ID を <code>processed_events</code> に記録し、
+      主キー衝突をスキップ条件として扱う。</p>
+
+      <pre><code class="language-sql">INSERT INTO processed_events (event_id, consumer, processed_at)
+VALUES ($1, $2, now())
+ON CONFLICT (event_id, consumer) DO NOTHING
+RETURNING event_id;</code></pre>
+
+      <div class="callout callout-info" data-title="補足">
+        <p><code>RETURNING</code> が空を返した場合は既に処理済みなので、
+        業務処理をスキップしてオフセットだけ進める。</p>
+      </div>
+
+      <h3>容量見積り</h3>
+
+      <p>1 パーティションあたりのスループットを <span class="math">$T_p$</span>、
+      必要な総スループットを <span class="math">$T$</span>、
+      安全係数を <span class="math">$\alpha = 1.5$</span> とすると、
+      必要パーティション数 <span class="math">$N$</span> は次で見積もる。</p>
+
+      <p>$$N = \left\lceil \frac{\alpha \cdot T}{T_p} \right\rceil
+        = \left\lceil \frac{1.5 \times 162}{40} \right\rceil = 7$$</p>
+
+      <p>ピーク時 162 events/sec、検証で得た 1 パーティションあたり 40 events/sec から
+      7 パーティションを確保する。順序保証の単位は <code>aggregate_id</code> とする。</p>
+
+      <h2>移行計画</h2>
+
+      <p>4 週間で 4 段階に分けて切り替える。各段階の終了条件を満たさない限り
+      次段階に進まない。</p>
+
+      <div class="doc-grid doc-grid-2">
+        <div class="card">
+          <h4>第 1 週 — 二重書き込み</h4>
+          <p class="doc-small doc-muted">Outbox への書き込みを開始する。読み出しは従来のまま。
+          終了条件: 24 時間で欠損 0 件。</p>
+        </div>
+        <div class="card">
+          <h4>第 2 週 — シャドウ消費</h4>
+          <p class="doc-small doc-muted">新コンシューマを副作用なしで動かし、結果を突合する。
+          終了条件: 不一致率 &lt; 0.01%。</p>
+        </div>
+        <div class="card">
+          <h4>第 3 週 — 部分切替</h4>
+          <p class="doc-small doc-muted">影響の小さい 5 系統を Kafka 経由に切り替える。
+          終了条件: 1 週間 SLO 違反なし。</p>
+        </div>
+        <div class="card">
+          <h4>第 4 週 — 全面切替</h4>
+          <p class="doc-small doc-muted">残り 13 系統を切り替え、ポーリングを停止する。
+          終了条件: 全系統の遅延 p99 &lt; 500&nbsp;ms。</p>
+        </div>
+      </div>
+
+      <h3>ロールバック手順</h3>
+
+      <ul class="checklist">
+        <li><input type="checkbox" checked disabled> 各段階でポーリング経路のコードを残す</li>
+        <li><input type="checkbox" checked disabled> フィーチャーフラグ <code>event.source</code> で系統ごとに切り戻せる</li>
+        <li><input type="checkbox" disabled> Outbox のリテンションを 7 日に設定する</li>
+        <li><input type="checkbox" disabled> 切り戻し訓練を第 2 週中に 1 回実施する</li>
+      </ul>
+
+      <div class="callout callout-danger" data-title="やってはいけないこと">
+        <p>第 4 週の完了前に <code>events</code> テーブルを削除しないこと。
+        切り戻し時の唯一の復旧経路である。</p>
+      </div>
+
+      <h2>未解決の論点</h2>
+
+      <dl>
+        <dt>スキーマレジストリの導入</dt>
+        <dd>Avro + Schema Registry を入れるか、当面 JSON のままとするか。
+        移行を単純化するため初期は JSON とし、切替完了後に再検討する<a class="footnote-ref" href="#fn1" id="fnref1">1</a>。</dd>
+
+        <dt>マルチリージョン配信</dt>
+        <dd>DR 要件が確定していないため本書のスコープ外とする。</dd>
+      </dl>
+
+      <details>
+        <summary>検討したが採用しなかった案</summary>
+        <p><strong>PostgreSQL LISTEN/NOTIFY</strong> — 実装は最も軽いが、
+        ペイロード上限 8&nbsp;KB と配信保証のなさが要件に合わない。
+        コネクション断で通知が失われる。</p>
+        <p><strong>アプリケーションからの直接 Publish</strong> — トランザクションと
+        Kafka 書き込みが分離するため、二相コミットなしでは整合性を保てない。</p>
+      </details>
+
+      <blockquote>
+        <p>分散システムにおける「ちょうど一度」は、実際には
+        「少なくとも一度 + 冪等な受け手」として実現される。</p>
+        <cite>設計レビュー 2026-08-21 のコメントより</cite>
+      </blockquote>
+
+      <p>操作の詳細は <kbd>Ctrl</kbd> + <kbd>K</kbd> で開く社内 Runbook を参照のこと。</p>
+
+      <section class="footnotes">
+        <h2 data-toc-skip>脚注</h2>
+        <ol>
+          <li id="fn1">スキーマ変更の頻度が四半期に 1 回程度であるため、
+          当面は互換性テストで十分と判断した。<a href="#fnref1">↩</a></li>
+        </ol>
+      </section>
+
+    </article>
+
+    <footer class="doc-footer">
+      <p>イベント配信基盤 リプレース設計 — v1.2</p>
+      <p>最終更新: 2026-09-06</p>
+    </footer>
+
+  </div>
+</div>
+
+<script src="assets/doc.js" defer></script>
+</body>
+</html>
