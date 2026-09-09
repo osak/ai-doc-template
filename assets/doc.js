@@ -50,7 +50,7 @@
     mermaid: {
       enable: 'auto',
       selector: '.mermaid',
-      src: 'https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js',
+      src: 'https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js',
       config: {}
     },
 

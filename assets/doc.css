@@ -503,16 +503,10 @@ kbd {
   list-style: none;
   padding-left: 0.2em;
 }
-.doc-body ul.checklist > li {
-  display: flex;
-  gap: var(--doc-space-2);
-  align-items: baseline;
-}
 .doc-body ul.checklist input[type="checkbox"] {
   margin: 0;
   translate: 0 0.15em;
   accent-color: var(--doc-c-accent);
-  flex: none;
 }
 
 /* 定義リスト */
