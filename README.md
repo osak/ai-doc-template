@@ -169,6 +169,12 @@ Mermaid / KaTeX / highlight.js は CDN 参照のまま残る（埋め込むと�
   <tbody><tr><th scope="row">Kafka</th><td class="num">¥182,000</td></tr></tbody>
 </table>
 
+<!-- 説明が長い項目は表にせず定義リストにする -->
+<dl>
+  <dt>Kafka</dt>
+  <dd>採用理由や制約を文章で説明する。</dd>
+</dl>
+
 <!-- カードと数値ハイライト -->
 <div class="doc-grid">
   <div class="card">
@@ -193,6 +199,9 @@ flowchart LR
 
 Mermaid と数式は、該当する記法がページにあるときだけライブラリを読みに行く。
 `<code>` や `<pre>` の中は数式の対象外なので、`$HOME` や SQL の `$1` は誤変換されない。
+
+表は、短い値を行・列で比較するときだけ使う。セルの内容が 1 フレーズを超える、または
+列が多く横長になる場合は、表ではなく `<dl>` / `<dt>` / `<dd>` の定義リストにする。
 
 
 ---

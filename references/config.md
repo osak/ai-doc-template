@@ -45,7 +45,7 @@
 | `copyCode.label` | `'コピー'` | ボタンの文言 |
 | `tableScroll.enable` | `true` | 表を横スクロール可能なコンテナで包む |
 | `mermaid.enable` | `'auto'` | `.mermaid` があるときだけ読み込む |
-| `mermaid.src` | cdnjs の URL | Mermaid の読み込み元 |
+| `mermaid.src` | jsDelivr の URL | Mermaid の読み込み元 |
 | `mermaid.config` | `{}` | `mermaid.initialize()` に渡す設定 |
 | `math.enable` | `'auto'` | 数式記法があるときだけ読み込む |
 | `math.engine` | `'katex'` | `'katex'` または `'mathjax'` |
