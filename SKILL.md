@@ -22,6 +22,11 @@ description: HTML でドキュメントを出力するための共通デザイ�
 3. **`<article class="doc-body">` の中だけを書く。** 下の「本文の書き方」に従う。
 4. 単一ファイルが必要なら `node scripts/build-standalone.mjs 出力.html` を実行する。
 
+既存 HTML をレビュー対応する作業では、同じディレクトリに `<HTML名>.review.json` があれば
+必ず HTML と一緒に読む。`comments[].block.id` を第一候補、`quote`・`textSHA256`・`sectionId` を
+補助情報として対象の段落またはリスト項目を照合し、各 `comment` に対処する。レビュー JSON 自体は編集せず、
+対応できなかった指摘は成果報告で明示する。
+
 生成後は必ずブラウザか目視で構造を確認する。特に、目次に出したい見出しが `h2` / `h3` に
 なっているか、表がヘッダ行を持っているかを見る。
 
@@ -94,6 +99,8 @@ description: HTML でドキュメントを出力するための共通デザイ�
 - 表は、短い値を行・列で比較するときだけ使う。セルの内容が 1 フレーズを超える、または
   列が多く横長になる場合は、表ではなく `<dl>` / `<dt>` / `<dd>` の定義リストにする。
 - コードは動く最小の断片にする。省略は `…` ではなくコメントで示す。
+- 長期間レビューされる文書の重要な段落やリスト項目には、内容由来で安定した `data-review-id` を付けてよい。
+  未指定でも見出し・要素種別・位置から自動生成されるため、すべての対象へ機械的に付けない。
 
 ### 使ってよいクラス
 
@@ -192,7 +199,8 @@ Mermaid / KaTeX / highlight.js は CDN 参照のまま残る。埋め込むと 1
 <script>
   window.DOC_CONFIG = {
     highlight:   { enable: true },   // シンタックスハイライト（既定 off）
-    themeToggle: { enable: true }    // ライト/ダーク切替ボタン（既定 off）
+    themeToggle: { enable: true },   // ライト/ダーク切替ボタン（既定 off）
+    review:      { enable: 'auto' }  // data-overmind 接続時だけ段落・リスト項目レビュー
   };
 </script>
 ```

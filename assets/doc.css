@@ -23,11 +23,12 @@
      11. コールアウト
      12. 図・メディア
      13. カード / グリッド
-     14. 目次サイドバー（TOC）
-     15. 脚注・フッタ
-     16. ユーティリティ
-     17. シンタックスハイライト（highlight.js 任意）
-     18. 印刷
+     14. 段落レビュー
+     15. 目次サイドバー（TOC）
+     16. 脚注・フッタ
+     17. ユーティリティ
+     18. シンタックスハイライト（highlight.js 任意）
+     19. 印刷
    ========================================================================== */
 
 /* ==========================================================================
@@ -79,6 +80,8 @@
   /* --- 寸法 --- */
   --doc-measure: 46rem;       /* 本文の最大幅（約 40 文字／全角） */
   --doc-toc-width: 17rem;
+  --doc-review-gutter: 2.4rem;
+  --doc-review-panel-width: 32rem;
   --doc-radius-sm: 4px;
   --doc-radius-md: 8px;
   --doc-radius-lg: 12px;
@@ -885,7 +888,137 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 }
 
 /* ==========================================================================
-   14. 目次サイドバー（TOC）
+   14. 段落・リストレビュー（data-overmind 接続時に doc.js が生成）
+   ========================================================================== */
+
+.doc-review-block {
+  position: relative;
+}
+
+.doc-review-block:last-child > p { margin-bottom: 0; }
+
+.doc-review-list-item > .doc-review-panel {
+  width: 100%;
+  margin: var(--doc-space-3) 0 var(--doc-space-4);
+}
+
+.doc-review-trigger {
+  position: absolute;
+  top: 0;
+  left: calc(100% + var(--doc-space-2));
+  z-index: 4;
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--doc-c-text-muted);
+  background: var(--doc-c-bg);
+  border: var(--doc-rule) solid transparent;
+  border-radius: 999px;
+  font: 700 1rem/1 var(--doc-font-sans);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  opacity: 0.22;
+  transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.doc-review-block:hover > .doc-review-trigger,
+.doc-review-block:focus-within > .doc-review-trigger,
+.doc-review-trigger:focus-visible,
+.doc-review-trigger[data-has-comment="true"] {
+  opacity: 1;
+}
+
+.doc-review-trigger:hover,
+.doc-review-trigger[aria-expanded="true"] {
+  color: var(--doc-c-accent);
+  background: var(--doc-c-accent-weak);
+  border-color: var(--doc-c-accent-line);
+}
+
+.doc-review-trigger[data-has-comment="true"] {
+  color: var(--doc-c-accent);
+  border-color: var(--doc-c-accent-line);
+}
+
+.doc-review-panel {
+  position: relative;
+  z-index: 3;
+  width: min(100%, var(--doc-review-panel-width));
+  margin: calc(-1 * var(--doc-space-2)) 0 var(--doc-space-5) auto;
+  padding: var(--doc-space-4);
+  background: var(--doc-c-surface);
+  border: var(--doc-rule) solid var(--doc-c-border-strong);
+  border-radius: var(--doc-radius-md);
+  box-shadow: var(--doc-shadow-md);
+}
+
+.doc-review-panel[hidden] { display: none; }
+
+.doc-review-panel .doc-review-quote {
+  margin: 0 0 var(--doc-space-3);
+  font-size: var(--doc-size-xs);
+  line-height: 1.6;
+  color: var(--doc-c-text-faint);
+}
+
+.doc-review-label {
+  display: block;
+  margin-bottom: var(--doc-space-1);
+  font-size: var(--doc-size-xs);
+  font-weight: 700;
+  color: var(--doc-c-text-muted);
+}
+
+.doc-review-textarea {
+  display: block;
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  padding: var(--doc-space-3);
+  color: var(--doc-c-text);
+  background: var(--doc-c-bg);
+  border: var(--doc-rule) solid var(--doc-c-border-strong);
+  border-radius: var(--doc-radius-sm);
+  font: inherit;
+  font-size: var(--doc-size-sm);
+  line-height: 1.65;
+}
+
+.doc-review-textarea::placeholder { color: var(--doc-c-text-faint); }
+
+.doc-review-panel-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--doc-space-2);
+  margin-top: var(--doc-space-3);
+}
+
+.doc-review-delete,
+.doc-review-close,
+.doc-review-submit {
+  min-height: 2.25rem;
+  padding: var(--doc-space-1) var(--doc-space-3);
+  border: var(--doc-rule) solid var(--doc-c-border-strong);
+  border-radius: var(--doc-radius-sm);
+  color: var(--doc-c-text-muted);
+  background: var(--doc-c-bg);
+  font: 600 var(--doc-size-xs)/1.4 var(--doc-font-sans);
+  cursor: pointer;
+}
+
+.doc-review-delete:hover { color: var(--doc-c-danger); border-color: var(--doc-c-danger-line); }
+.doc-review-close:hover { color: var(--doc-c-text); }
+
+@media (max-width: 59.99rem) {
+  .doc-review-block { padding-right: var(--doc-review-gutter); }
+  .doc-review-trigger { left: auto; right: 0; }
+  .doc-review-panel { width: 100%; margin-right: calc(-1 * var(--doc-review-gutter)); }
+}
+
+/* ==========================================================================
+   15. 目次サイドバー（TOC）
    ========================================================================== */
 
 .doc-toc {
@@ -958,6 +1091,44 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 }
 .doc-toc [data-level="3"] a { font-size: 0.94em; }
 
+.doc-review-menu {
+  margin-top: var(--doc-space-5);
+  padding-top: var(--doc-space-4);
+  border-top: var(--doc-rule) solid var(--doc-c-border);
+}
+
+.doc-review-menu-title {
+  margin: 0 0 var(--doc-space-2);
+  font-size: var(--doc-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--doc-c-text-faint);
+}
+
+.doc-review-count,
+.doc-review-status {
+  margin: 0 0 var(--doc-space-2);
+  color: var(--doc-c-text-muted);
+  font-size: var(--doc-size-xs);
+  line-height: 1.55;
+}
+
+.doc-review-status[data-status="success"] { color: var(--doc-c-success); }
+.doc-review-status[data-status="error"] { color: var(--doc-c-danger); }
+.doc-review-status[data-status="saving"] { color: var(--doc-c-warn); }
+
+.doc-review-submit {
+  width: 100%;
+  min-height: 2.5rem;
+  color: var(--doc-c-bg);
+  background: var(--doc-c-accent);
+  border-color: var(--doc-c-accent);
+}
+
+.doc-review-submit:hover:not(:disabled) { background: var(--doc-c-accent-hover); }
+.doc-review-submit:disabled { opacity: 0.48; cursor: not-allowed; }
+
 /* 狭い画面では折りたたみの帯にする */
 @media (max-width: 59.99rem) {
   .doc-toc {
@@ -992,7 +1163,7 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 .doc-theme-toggle:hover { color: var(--doc-c-text); }
 
 /* ==========================================================================
-   15. 脚注・フッタ
+   16. 脚注・フッタ
    ========================================================================== */
 
 .doc-body .footnote-ref {
@@ -1034,7 +1205,7 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 .doc-footer p { margin: 0; }
 
 /* ==========================================================================
-   16. ユーティリティ
+   17. ユーティリティ
    ========================================================================== */
 
 .doc-muted { color: var(--doc-c-text-muted); }
@@ -1077,7 +1248,7 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 .doc-skip-link:focus { transform: none; }
 
 /* ==========================================================================
-   17. シンタックスハイライト（highlight.js を使う場合のみ有効）
+   18. シンタックスハイライト（highlight.js を使う場合のみ有効）
    外部テーマ CSS を読まずに済むよう、トークン色もトークン変数から作る。
    ========================================================================== */
 
@@ -1134,7 +1305,7 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 .hljs-addition { background: var(--hl-addition-bg); }
 
 /* ==========================================================================
-   18. 印刷
+   19. 印刷
    A4 / 1 段組・目次とインタラクション要素は落とす
    ========================================================================== */
 
@@ -1161,6 +1332,8 @@ code, kbd, samp, pre, .doc-body .math-inline code {
   .doc-toc,
   .doc-theme-toggle,
   .doc-copy-btn,
+  .doc-review-trigger,
+  .doc-review-panel,
   .heading-anchor,
   .doc-skip-link { display: none !important; }
 

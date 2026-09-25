@@ -37,7 +37,7 @@
 | `toc.target` | `'#doc-toc'` | 目次の差し込み先 |
 | `toc.headings` | `'h2, h3'` | 目次に載せる見出し |
 | `toc.title` | `'目次'` | 目次の見出し文字列 |
-| `toc.minHeadings` | `2` | これ未満なら目次要素ごと削除する |
+| `toc.minHeadings` | `2` | これ未満なら目次リンクを表示しない（レビュー欄は利用可能） |
 | `toc.scrollSpy` | `true` | スクロールに応じて現在位置をハイライト |
 | `anchors.enable` | `true` | 見出しに `#` アンカーを付ける |
 | `anchors.headings` | `'h2, h3, h4'` | アンカーを付ける見出し |
@@ -53,9 +53,39 @@
 | `highlight.enable` | `false` | `true` で highlight.js を読み込む |
 | `themeToggle.enable` | `false` | `true` で右上にライト/ダーク切替ボタン |
 | `themeToggle.storageKey` | `'doc-theme'` | 選択を保存する localStorage のキー |
+| `review.enable` | `'auto'` | `data-overmind` のレビュー API があるときだけレビューを有効化。`false` で無効、`true` で接続エラーも表示 |
+| `review.contextURL` | `'/_data-overmind/review-context'` | 文書と既存レビューを取得する同一オリジン API |
+| `review.submitURL` | `'/_data-overmind/reviews'` | レビューを保存する同一オリジン API |
+| `review.selector` | `'p, li'` | 本文内でレビュー対象にする要素のセレクタ |
+| `review.storagePrefix` | `'ai-doc-review:v1:'` | 下書き用 localStorage キーの接頭辞 |
+| `review.saveDelay` | `300` | 入力後に下書きを保存するまでの待ち時間（ms） |
+| `review.labels.*` | 日本語の既定文言 | ボタン、状態、エラー表示の文言 |
 
 `enable` の `'auto'` は「対象要素があるときだけ有効」の意味。
 図も数式もない文書では、対応するライブラリを 1 バイトも取得しない。
+
+### 段落・リスト項目レビュー
+
+レビューは HTTP(S) で開いた文書だけで初期化される。既定の `'auto'` ではレビュー API が
+見つからない場合に UI を出さないため、一般的な静的ホスティングや単一ファイル配布の挙動を
+変えない。`data-overmind` から開いた場合は、入力中のコメントを `localStorage` に保存し、
+送信時に `<文書名>.review.json` へ書き出す。
+
+対象の段落やリスト項目には任意で安定 ID を指定できる。
+
+```html
+<p data-review-id="requirements-auth">認証要件の本文。</p>
+<li data-review-id="requirements-audit">監査ログを 90 日保持する。</li>
+```
+
+未指定時は、直前の `h2` / `h3`、要素種別、セクション内の同種要素の位置から ID を生成する。
+文書を長期運用し、段落やリスト項目の追加・並べ替えが多い場合は `data-review-id` を推奨する。
+
+`li` の子に `p` がある場合は、同じ文章に操作が二重表示されないよう子の `p` だけを対象にする。
+入れ子のリストでは各 `li` が対象になり、親項目の引用には子リストの文章を含めない。
+
+`window.DocTemplate.reviewStatus()` は初期化後の状態（有効可否、コメント数、下書き有無、
+レビューのパス）を返す。レビュー内容そのものは返さない。
 
 ### `$` を数式として扱いたくない場合
 

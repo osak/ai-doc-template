@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>段落レビュー動作確認</title>
+<link rel="stylesheet" href="assets/doc.css">
+<script>
+  window.DOC_CONFIG = {
+    themeToggle: { enable: true }
+  };
+</script>
+</head>
+<body>
+<a class="doc-skip-link" href="#main">本文へスキップ</a>
+<div class="doc-layout">
+  <aside class="doc-toc" id="doc-toc"></aside>
+  <div class="doc-main" id="main">
+    <header class="doc-header">
+      <p class="doc-eyebrow">動作確認 / REVIEW FIXTURE</p>
+      <h1>段落レビュー動作確認</h1>
+      <p class="doc-subtitle">通常段落、長文、リスト項目、コールアウト内段落、見出し前段落のレビュー UI を確認する。</p>
+    </header>
+    <article class="doc-body">
+      <p class="lead">この段落は最初の見出しより前にあり、preamble として識別されます。</p>
+
+      <h2>通常の段落</h2>
+      <p>短い段落です。右側の三点リーダーからコメント欄を開けます。</p>
+      <p>長い段落では、複数行に折り返された文章とレビュー用の操作が重ならないことを確認します。狭い画面では操作ボタンが本文の右端へ移動し、コメント欄が段落の直下へ展開されます。</p>
+
+      <h3>リスト項目</h3>
+      <ul>
+        <li data-review-id="fixture-list-first">各リスト項目にも個別にコメントできます。</li>
+        <li>番号なしリストのマーカーとレビュー操作が重ならないことを確認します。</li>
+      </ul>
+
+      <h2>入れ子の段落</h2>
+      <div class="callout callout-info" data-title="補足">
+        <p data-review-id="fixture-callout">コールアウト内の段落にもコメントできます。この段落には明示的な data-review-id があります。</p>
+      </div>
+
+      <blockquote>
+        <p>引用内の段落もレビュー対象です。</p>
+      </blockquote>
+    </article>
+    <footer class="doc-footer">
+      <p>段落レビュー動作確認</p>
+      <p>レビュー機能テスト用</p>
+    </footer>
+  </div>
+</div>
+<script src="assets/doc.js" defer></script>
+</body>
+</html>
