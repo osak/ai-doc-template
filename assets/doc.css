@@ -23,7 +23,7 @@
      11. コールアウト
      12. 図・メディア
      13. カード / グリッド
-     14. 段落レビュー
+     14. ブロックレビュー
      15. 目次サイドバー（TOC）
      16. 脚注・フッタ
      17. ユーティリティ
@@ -888,7 +888,7 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 }
 
 /* ==========================================================================
-   14. 段落・リストレビュー（data-overmind 接続時に doc.js が生成）
+   14. ブロックレビュー（data-overmind 接続時に doc.js が生成）
    ========================================================================== */
 
 .doc-review-block {
@@ -900,6 +900,25 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 .doc-review-list-item > .doc-review-panel {
   width: 100%;
   margin: var(--doc-space-3) 0 var(--doc-space-4);
+}
+
+.doc-review-table-cell {
+  position: relative;
+  padding-right: calc(var(--doc-space-4) + var(--doc-review-gutter));
+}
+
+.doc-review-table-cell > .doc-review-trigger {
+  top: 50%;
+  right: var(--doc-space-2);
+  left: auto;
+  translate: 0 -50%;
+}
+
+.doc-review-table-row:hover { background: transparent; }
+.doc-review-table-panel-cell { padding: 0 var(--doc-space-4) var(--doc-space-4); }
+.doc-review-table-panel-cell > .doc-review-panel {
+  width: 100%;
+  margin: 0;
 }
 
 .doc-review-trigger {
@@ -1334,6 +1353,7 @@ code, kbd, samp, pre, .doc-body .math-inline code {
   .doc-copy-btn,
   .doc-review-trigger,
   .doc-review-panel,
+  .doc-review-table-row,
   .heading-anchor,
   .doc-skip-link { display: none !important; }
 

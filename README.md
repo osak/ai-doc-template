@@ -7,7 +7,7 @@ AI に技術ドキュメントやレポートを **HTML で出力させる**た�
 - 同じ HTML を **1 ファイルに固めたビルド**も出せる（コピペ配布・メール添付向け）
 - ライト / ダーク自動切替、A4 印刷対応、日本語タイポグラフィ前提
 - 目次の自動生成・スクロール追従、コードのコピーボタン、Mermaid 図、TeX 数式
-- `data-overmind` で開くと、段落・リスト項目のコメントを下書き保存してレビュー JSON として送信
+- `data-overmind` で開くと、見出し・段落・リスト・表の行・定義項目のコメントを下書き保存してレビュー JSON として送信
 
 ---
 
@@ -51,7 +51,7 @@ ai-doc-template/
 ├── DESIGN.md                    デザインの設計思想
 ├── template.html                空のひな形（ここから書き始める）
 ├── example.html                 全パーツを使ったサンプル文書
-├── review-example.html          段落レビュー UI の動作確認用文書
+├── review-example.html          ブロックレビュー UI の動作確認用文書
 ├── assets/
 │   ├── doc.css                  スタイル（唯一の見た目の定義）
 │   └── doc.js                   目次・コピーボタン・図・数式（任意）
@@ -108,7 +108,7 @@ Mermaid / KaTeX / highlight.js は CDN 参照のまま残る（埋め込むと�
 
 ### 4. 人間のレビューを AI に返す
 
-`data-overmind` の `fileserver` で文書を開くと、各段落とリスト項目の右側に三点リーダーが現れる。
+`data-overmind` の `fileserver` で文書を開くと、見出し・段落・リスト項目・表の本文行・定義項目の右側に三点リーダーが現れる。
 コメントは入力中から `localStorage` に下書き保存され、サイドバーの
 **レビューをサブミットする**で元の HTML と同じディレクトリへ保存される。
 
@@ -121,7 +121,7 @@ AI にはこの 2 ファイルを一緒に読ませる。レビュー JSON に�
 含まれるため、AI は指摘箇所を照合できる。`file://` や通常の静的サーバーではレビュー UI は
 自動的に出ず、従来どおり閲覧専用の文書として動作する。
 
-長期間更新する文書では、段落やリスト項目に `data-review-id="requirements-auth"` のような安定した ID を
+長期間更新する文書では、重要な見出しやブロックに `data-review-id="requirements-auth"` のような安定した ID を
 付けると、前段の追加・削除があってもレビュー先を追跡しやすい。未指定時は見出し・要素種別・位置から
 自動生成される。
 
@@ -251,7 +251,7 @@ Mermaid と数式は、該当する記法がページにあるときだけライ
 | `math.enable` | `'auto'` | 数式らしき記法があるときだけ読み込む |
 | `highlight.enable` | `false` | `true` で highlight.js を読み込む。配色は `doc.css` 側で定義済み |
 | `themeToggle.enable` | `false` | `true` で右上に切替ボタン。選択は `localStorage` に保存 |
-| `review.enable` | `'auto'` | `data-overmind` 接続時だけ段落・リスト項目レビューを有効化 |
+| `review.enable` | `'auto'` | `data-overmind` 接続時だけブロックレビューを有効化 |
 
 **全設定項目・オフライン運用の手順は
 [references/config.md](./references/config.md)** にある。

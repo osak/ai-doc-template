@@ -40,5 +40,6 @@ HTML ドキュメント（設計書・仕様書・レポート・報告書・手
 - `doc.css` / `doc.js` から外部ファイルを参照しない（単一ファイル化が壊れる）
 - JavaScript が動かなくても文書が読める状態を保つ
 
-変更後は `node scripts/build-standalone.mjs example.html` が通ること、
-`example.html` をブラウザで開いてライト/ダーク/印刷プレビューが崩れないことを確認してください。
+変更後は `node --check assets/doc.js` と `node scripts/build-standalone.mjs example.html` が通ることを
+確認してください。ブラウザでのライト/ダーク/印刷プレビュー確認は、ユーザーから明示的に
+求められた場合だけ行ってください。
