@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>段落レビュー動作確認</title>
+<title>ブロックレビュー動作確認</title>
 <link rel="stylesheet" href="assets/doc.css">
 <script>
   window.DOC_CONFIG = {
@@ -18,8 +18,8 @@
   <div class="doc-main" id="main">
     <header class="doc-header">
       <p class="doc-eyebrow">動作確認 / REVIEW FIXTURE</p>
-      <h1>段落レビュー動作確認</h1>
-      <p class="doc-subtitle">通常段落、長文、リスト項目、コールアウト内段落、見出し前段落のレビュー UI を確認する。</p>
+      <h1>ブロックレビュー動作確認</h1>
+      <p class="doc-subtitle">見出し、段落、リスト項目、表の行、定義項目のレビュー UI を確認する。</p>
     </header>
     <article class="doc-body">
       <p class="lead">この段落は最初の見出しより前にあり、preamble として識別されます。</p>
@@ -42,9 +42,21 @@
       <blockquote>
         <p>引用内の段落もレビュー対象です。</p>
       </blockquote>
+
+      <h2 data-review-id="fixture-structured-blocks">構造化されたブロック</h2>
+      <table>
+        <thead><tr><th scope="col">項目</th><th scope="col">内容</th></tr></thead>
+        <tbody>
+          <tr data-review-id="fixture-table-row"><th scope="row">保持期間</th><td>監査ログを 90 日保持します。</td></tr>
+        </tbody>
+      </table>
+      <dl>
+        <dt data-review-id="fixture-definition">再試行方針</dt>
+        <dd>指数バックオフを使い、最大 3 回まで再試行します。</dd>
+      </dl>
     </article>
     <footer class="doc-footer">
-      <p>段落レビュー動作確認</p>
+      <p>ブロックレビュー動作確認</p>
       <p>レビュー機能テスト用</p>
     </footer>
   </div>

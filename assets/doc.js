@@ -12,7 +12,7 @@
  *   - TeX 数式の描画（KaTeX / MathJax、必要なときだけ遅延ロード）
  *   - highlight.js によるシンタックスハイライト（任意・既定は無効）
  *   - ライト/ダーク切替ボタン（任意・既定は無効）
- *   - data-overmind 接続時の段落・リスト項目レビューと下書き保存（任意・既定は自動検出）
+ *   - data-overmind 接続時のブロックレビューと下書き保存（任意・既定は自動検出）
  *
  * 設定は読み込み前に window.DOC_CONFIG を定義して上書きする。
  *   <script>window.DOC_CONFIG = { toc: { enable: false } };</script>
@@ -91,7 +91,7 @@
       enable: 'auto',
       contextURL: '/_data-overmind/review-context',
       submitURL: '/_data-overmind/reviews',
-      selector: 'p, li',
+      selector: 'h2, h3, h4, h5, h6, p, li, tbody > tr, dt',
       storagePrefix: 'ai-doc-review:v1:',
       saveDelay: 300,
       labels: {
@@ -530,7 +530,7 @@
   }
 
   /* ----------------------------------------------------------------------
-     段落・リスト項目レビュー（data-overmind と同一オリジンで開いたときだけ有効）
+     ブロックレビュー（data-overmind と同一オリジンで開いたときだけ有効）
      ---------------------------------------------------------------------- */
 
   var reviewState = null;
@@ -613,10 +613,22 @@
   function reviewTimestamp() { return new Date().toISOString(); }
 
   function reviewElementText(element) {
-    if (element.tagName !== 'LI') return element.textContent;
     var clone = element.cloneNode(true);
-    $$('ol, ul', clone).forEach(function (nestedList) { nestedList.remove(); });
-    return clone.textContent;
+    $$('.heading-anchor, .doc-review-trigger, .doc-review-panel', clone).forEach(function (generated) {
+      generated.remove();
+    });
+    if (element.tagName === 'LI') {
+      $$('ol, ul', clone).forEach(function (nestedList) { nestedList.remove(); });
+    }
+    var text = clone.textContent;
+    if (element.tagName === 'DT') {
+      var sibling = element.nextElementSibling;
+      while (sibling && sibling.tagName === 'DD') {
+        text += ' ' + sibling.textContent;
+        sibling = sibling.nextElementSibling;
+      }
+    }
+    return text;
   }
 
   function createReviewBlocks(content) {
@@ -635,7 +647,6 @@
       if (element.matches('h2, h3')) {
         currentSection = clippedReviewID(element.id || element.textContent);
         sectionIndexes = {};
-        return;
       }
       if (requestedSet.indexOf(element) < 0) return;
       var paragraphIndex = requestedSet.indexOf(element);
@@ -662,6 +673,7 @@
         },
         trigger: null,
         panel: null,
+        panelHost: null,
         textarea: null
       });
       sectionIndexes[elementType] = sectionIndex + 1;
@@ -780,6 +792,7 @@
   function closeReviewPanel(state, block, restoreFocus) {
     if (!block || !block.panel || block.panel.hidden) return;
     block.panel.hidden = true;
+    if (block.panelHost) block.panelHost.hidden = true;
     block.trigger.setAttribute('aria-expanded', 'false');
     if (state.openBlock === block) state.openBlock = null;
     if (restoreFocus) block.trigger.focus();
@@ -789,6 +802,7 @@
     if (state.openBlock && state.openBlock !== block) closeReviewPanel(state, state.openBlock, false);
     var comment = commentForBlock(state, block.anchor.id);
     block.textarea.value = comment ? comment.comment : '';
+    if (block.panelHost) block.panelHost.hidden = false;
     block.panel.hidden = false;
     block.trigger.setAttribute('aria-expanded', 'true');
     state.openBlock = block;
@@ -823,7 +837,18 @@
 
   function createReviewPanel(state, block, index) {
     var wrapper;
-    if (block.element.tagName === 'LI') {
+    var tableRow = block.element.tagName === 'TR';
+    var headingBlock = /^H[2-6]$/.test(block.element.tagName);
+    if (tableRow) {
+      var cells = $$(':scope > th, :scope > td', block.element);
+      if (!cells.length) return;
+      wrapper = cells[cells.length - 1];
+      block.element.classList.add('doc-review-table-source');
+      wrapper.classList.add('doc-review-table-cell');
+    } else if (headingBlock) {
+      wrapper = block.element;
+      wrapper.classList.add('doc-review-block');
+    } else if (block.element.tagName === 'LI' || block.element.tagName === 'DT') {
       wrapper = block.element;
       wrapper.classList.add('doc-review-block', 'doc-review-list-item');
     } else {
@@ -878,7 +903,24 @@
     actions.appendChild(remove);
     actions.appendChild(close);
     panel.appendChild(actions);
-    wrapper.appendChild(panel);
+    if (tableRow) {
+      var panelRow = document.createElement('tr');
+      panelRow.className = 'doc-review-table-row';
+      panelRow.hidden = true;
+      var panelCell = document.createElement('td');
+      panelCell.className = 'doc-review-table-panel-cell';
+      panelCell.colSpan = cells.reduce(function (total, cell) {
+        return total + Math.max(1, Number(cell.colSpan) || 1);
+      }, 0);
+      panelCell.appendChild(panel);
+      panelRow.appendChild(panelCell);
+      block.element.parentNode.insertBefore(panelRow, block.element.nextSibling);
+      block.panelHost = panelRow;
+    } else if (headingBlock) {
+      block.element.parentNode.insertBefore(panel, block.element.nextSibling);
+    } else {
+      wrapper.appendChild(panel);
+    }
 
     block.trigger = trigger;
     block.panel = panel;
