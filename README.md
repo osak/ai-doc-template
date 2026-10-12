@@ -31,7 +31,8 @@ symlink を嫌う環境ではディレクトリごとコピーしてもよい。
 
 ### その他のエージェント（Cursor / Codex / 自作エージェントなど）
 
-`AGENTS.md` が入口になる。リポジトリを参照させるだけでよい。
+HTML 文書の生成には `SKILL.md` を入口として参照させる。
+このリポジトリ自体を開発・保守するエージェント向けの指示は `AGENTS.md` にある。
 
 ファイルを読み込めないエージェントには、`references/paste-prompt.md` の内容を
 システムプロンプトやカスタム指示に貼り付ける。
@@ -47,8 +48,9 @@ symlink を嫌う環境ではディレクトリごとコピーしてもよい。
 ```
 ai-doc-template/
 ├── SKILL.md                     skill の入口（エージェントが最初に読む）
-├── AGENTS.md                    Claude 以外のエージェント向け入口
+├── AGENTS.md                    リポジトリ開発・保守向けの指示
 ├── README.md                    このファイル（人間向け）
+├── RELEASING.md                 CDN 向けのリリース手順
 ├── DESIGN.md                    デザインの設計思想
 ├── template.html                空のひな形（ここから書き始める）
 ├── example.html                 全パーツを使ったサンプル文書
@@ -84,6 +86,29 @@ ai-doc-template/
 
 複数の文書でスタイルを共有でき、`doc.css` を直せば全文書に反映される。
 `template.html` をコピーして本文を書き始めるのが最短ルート。
+
+### 公開済み版を CDN から読む
+
+公開 GitHub リポジトリのリリースタグにある `assets/` は、jsDelivr から読める。
+文書を置く場所へ `assets/` をコピーしない場合に使う。次は `v0.1.0` を**公開した後**の例で、
+実際には利用するタグに置き換える。
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/osak/ai-doc-template@v0.1.0/assets/doc.css">
+...
+<script src="https://cdn.jsdelivr.net/gh/osak/ai-doc-template@v0.1.0/assets/doc.js" defer></script>
+```
+
+CSS と JS は必ず同じタグを指定する。配布する文書では `@main` やバージョン省略を使わず、
+新しい版に切り替えるときは両方の URL のタグを更新する。タグ付きファイルは長期間
+キャッシュされるため、公開後のタグを移動・上書きしない。
+
+`template.html` と単一ファイル化する元の HTML はローカルの `assets/` 参照を維持する。
+`scripts/build-standalone.mjs` は外部 URL を埋め込まないため、CDN 参照へ変更した HTML を
+入力すると CSS / JS が外部参照のまま残る。自作の CSS / JS を文書へ埋め込む場合は
+ローカル参照から単一ファイル化する。Mermaid / KaTeX / highlight.js は引き続き CDN 参照となる。
+
+リリースの準備、タグの作成、公開後の確認は [RELEASING.md](./RELEASING.md) に記載する。
 
 ### 2. 単一ファイル化
 
