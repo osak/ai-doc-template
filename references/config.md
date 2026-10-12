@@ -53,6 +53,8 @@
 | `highlight.enable` | `false` | `true` で highlight.js を読み込む |
 | `themeToggle.enable` | `false` | `true` で右上にライト/ダーク切替ボタン |
 | `themeToggle.storageKey` | `'doc-theme'` | 選択を保存する localStorage のキー |
+| `layoutToggle.enable` | `false` | `true` で右上にレイアウトと余白の設定メニュー |
+| `layoutToggle.storageKey` | `'doc-layout'` | 選択を保存する localStorage のキー |
 | `review.enable` | `'auto'` | `data-overmind` のレビュー API があるときだけレビューを有効化。`false` で無効、`true` で接続エラーも表示 |
 | `review.contextURL` | `'/_data-overmind/review-context'` | 文書と既存レビューを取得する同一オリジン API |
 | `review.submitURL` | `'/_data-overmind/reviews'` | レビューを保存する同一オリジン API |
@@ -69,7 +71,7 @@
 レビューは HTTP(S) で開いた文書だけで初期化される。既定の `'auto'` ではレビュー API が
 見つからない場合に UI を出さないため、一般的な静的ホスティングや単一ファイル配布の挙動を
 変えない。`data-overmind` から開いた場合は、入力中のコメントを `localStorage` に保存し、
-送信時に `<文書名>.review.json` へ書き出す。
+送信時に `<文書名>.review.json` へ書き出す。目次サイドバーの「レビュー」タブでコメントを一覧し、項目を押すと該当箇所へ移動できる。
 
 対象の見出しやブロックには任意で安定 ID を指定できる。
 
@@ -117,6 +119,7 @@ window.DOC_CONFIG = {
 
 <html lang="ja" data-doc-width="wide">   <!-- 本文幅 46rem → 56rem -->
 <html lang="ja" data-doc-width="full">   <!-- 上限なし -->
+<html lang="ja" data-doc-layout="margins" data-doc-margin="large"> <!-- 左右の余白を固定、余白は大 -->
 
 <html lang="ja" data-doc-font="serif">   <!-- 明朝系。報告書向け -->
 ```

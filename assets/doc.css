@@ -79,6 +79,7 @@
 
   /* --- 寸法 --- */
   --doc-measure: 46rem;       /* 本文の最大幅（約 40 文字／全角） */
+  --doc-page-margin: var(--doc-space-7);
   --doc-toc-width: 17rem;
   --doc-review-gutter: 2.4rem;
   --doc-review-panel-width: 32rem;
@@ -126,6 +127,9 @@
 /* 本文幅を広げたい場合: <html data-doc-width="wide"> */
 [data-doc-width="wide"] { --doc-measure: 56rem; }
 [data-doc-width="full"] { --doc-measure: none; }
+[data-doc-layout="margins"] { --doc-measure: none; }
+[data-doc-margin="small"] { --doc-page-margin: var(--doc-space-5); }
+[data-doc-margin="large"] { --doc-page-margin: var(--doc-space-8); }
 
 /* ==========================================================================
    02. ダークテーマ
@@ -265,7 +269,7 @@ img, svg, video, canvas { max-width: 100%; height: auto; }
 }
 
 @media (min-width: 48rem) {
-  .doc-main { padding-inline: var(--doc-space-7); }
+  .doc-main { padding-inline: var(--doc-page-margin); }
 }
 
 /* 本文カラム。ヘッダ・記事・フッタで共通の幅を持たせる */
@@ -1058,6 +1062,35 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 /* 目次が空のときは場所を取らない */
 .doc-toc:empty { display: none; }
 
+.doc-sidebar-tabs {
+  display: flex;
+  gap: var(--doc-space-2);
+  margin-bottom: var(--doc-space-4);
+  border-bottom: var(--doc-rule) solid var(--doc-c-border);
+}
+.doc-sidebar-tab {
+  flex: 1;
+  padding: var(--doc-space-2);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--doc-c-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.doc-sidebar-tab[aria-selected="true"] {
+  border-bottom-color: var(--doc-c-accent);
+  color: var(--doc-c-accent);
+  font-weight: 700;
+}
+.doc-sidebar-tab:focus-visible,
+.doc-review-list-entry:focus-visible,
+.doc-layout-control summary:focus-visible {
+  outline: 2px solid var(--doc-c-focus);
+  outline-offset: 2px;
+}
+.doc-toc [role="tabpanel"][hidden] { display: none; }
+
 .doc-toc-title {
   margin: 0 0 var(--doc-space-3);
   font-size: var(--doc-size-xs);
@@ -1111,10 +1144,30 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 .doc-toc [data-level="3"] a { font-size: 0.94em; }
 
 .doc-review-menu {
-  margin-top: var(--doc-space-5);
-  padding-top: var(--doc-space-4);
-  border-top: var(--doc-rule) solid var(--doc-c-border);
+  margin-top: 0;
 }
+
+.doc-review-list { max-height: 50vh; overflow-y: auto; margin: var(--doc-space-3) 0; }
+.doc-review-empty { color: var(--doc-c-text-muted); font-size: var(--doc-size-xs); }
+.doc-review-list-entry {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--doc-space-2);
+  padding: var(--doc-space-2) var(--doc-space-3);
+  border: var(--doc-rule) solid var(--doc-c-border);
+  border-radius: var(--doc-radius-sm);
+  background: var(--doc-c-surface);
+  color: var(--doc-c-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.doc-review-list-entry:hover { border-color: var(--doc-c-accent); }
+.doc-review-list-entry:disabled { cursor: default; opacity: 0.7; }
+.doc-review-list-quote,
+.doc-review-list-comment { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.doc-review-list-quote { color: var(--doc-c-text-muted); font-size: var(--doc-size-xs); }
+.doc-review-list-comment { margin-top: var(--doc-space-1); font-size: var(--doc-size-sm); }
 
 .doc-review-menu-title {
   margin: 0 0 var(--doc-space-2);
@@ -1180,6 +1233,47 @@ code, kbd, samp, pre, .doc-body .math-inline code {
   cursor: pointer;
 }
 .doc-theme-toggle:hover { color: var(--doc-c-text); }
+
+.doc-layout-control {
+  position: fixed;
+  top: var(--doc-space-3);
+  right: var(--doc-space-3);
+  z-index: 50;
+  font-size: var(--doc-size-sm);
+}
+.doc-layout-control-with-theme { right: calc(var(--doc-space-3) + 2.75rem); }
+.doc-layout-control summary {
+  display: grid;
+  place-items: center;
+  min-width: 2.5rem;
+  height: 2.25rem;
+  padding-inline: var(--doc-space-2);
+  border: var(--doc-rule) solid var(--doc-c-border);
+  border-radius: var(--doc-radius-md);
+  background: var(--doc-c-bg);
+  color: var(--doc-c-text-muted);
+  box-shadow: var(--doc-shadow-sm);
+  cursor: pointer;
+  list-style: none;
+}
+.doc-layout-control summary::-webkit-details-marker { display: none; }
+.doc-layout-menu {
+  position: absolute;
+  top: calc(100% + var(--doc-space-2));
+  right: 0;
+  width: 15rem;
+  padding: var(--doc-space-3);
+  border: var(--doc-rule) solid var(--doc-c-border);
+  border-radius: var(--doc-radius-md);
+  background: var(--doc-c-bg);
+  color: var(--doc-c-text);
+  box-shadow: var(--doc-shadow-md);
+}
+.doc-layout-menu fieldset { margin: 0 0 var(--doc-space-3); padding: 0; border: 0; }
+.doc-layout-menu fieldset:last-child { margin-bottom: 0; }
+.doc-layout-menu legend { margin-bottom: var(--doc-space-1); font-weight: 700; }
+.doc-layout-menu label { display: flex; align-items: center; gap: var(--doc-space-2); padding: var(--doc-space-1) 0; cursor: pointer; }
+.doc-layout-menu input { accent-color: var(--doc-c-accent); }
 
 /* ==========================================================================
    16. 脚注・フッタ
@@ -1350,6 +1444,7 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 
   .doc-toc,
   .doc-theme-toggle,
+  .doc-layout-control,
   .doc-copy-btn,
   .doc-review-trigger,
   .doc-review-panel,
