@@ -201,6 +201,7 @@ Mermaid / KaTeX / highlight.js は CDN 参照のまま残る。埋め込むと 1
   window.DOC_CONFIG = {
     highlight:   { enable: true },   // シンタックスハイライト（既定 off）
     themeToggle: { enable: true },   // ライト/ダーク切替ボタン（既定 off）
+    layoutToggle: { enable: true },  // 本文幅と余白の切替（既定 off）
     review:      { enable: 'auto' }  // data-overmind 接続時だけブロックレビュー
   };
 </script>

@@ -87,6 +87,12 @@
       darkLabel: 'ダークテーマに切り替え'
     },
 
+    layoutToggle: {
+      enable: false,
+      storageKey: 'doc-layout',
+      label: 'レイアウト設定'
+    },
+
     review: {
       enable: 'auto',
       contextURL: '/_data-overmind/review-context',
@@ -96,6 +102,10 @@
       saveDelay: 300,
       labels: {
         menuTitle: 'レビュー',
+        tocTab: '目次',
+        reviewTab: 'レビュー',
+        emptyComments: 'コメントはありません',
+        missingBlock: '対象箇所が見つかりません',
         openComment: 'この箇所にコメントする',
         editComment: 'この箇所のコメントを編集する',
         commentLabel: 'レビューコメント',
@@ -745,6 +755,45 @@
     state.count.textContent = count + ' 件のコメント';
     state.submit.disabled = state.submitting || (count === 0 && !state.context.review.revision);
     state.submit.textContent = state.submitting ? CFG.review.labels.submitting : CFG.review.labels.submit;
+    if (state.reviewTab) state.reviewTab.textContent = CFG.review.labels.reviewTab + ' (' + count + ')';
+    if (state.commentList) renderReviewList(state);
+  }
+
+  function renderReviewList(state) {
+    var list = state.commentList;
+    while (list.firstChild) list.removeChild(list.firstChild);
+    var comments = commentsForReviewState(state);
+    if (!comments.length) {
+      var empty = document.createElement('p');
+      empty.className = 'doc-review-empty';
+      empty.textContent = CFG.review.labels.emptyComments;
+      list.appendChild(empty);
+      return;
+    }
+    comments.forEach(function (comment) {
+      var block = state.blocks.filter(function (candidate) { return candidate.anchor.id === comment.block.id; })[0];
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'doc-review-list-entry';
+      var quote = document.createElement('span');
+      quote.className = 'doc-review-list-quote';
+      quote.textContent = comment.block.quote || CFG.review.labels.missingBlock;
+      var body = document.createElement('span');
+      body.className = 'doc-review-list-comment';
+      body.textContent = comment.comment;
+      item.appendChild(quote);
+      item.appendChild(body);
+      if (block) {
+        item.addEventListener('click', function () {
+          block.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          openReviewPanel(state, block);
+        });
+      } else {
+        item.disabled = true;
+        item.title = CFG.review.labels.missingBlock;
+      }
+      list.appendChild(item);
+    });
   }
 
   function flushReviewDraft(state) {
@@ -967,6 +1016,57 @@
     var host = $(CFG.toc.target);
     if (!host) return false;
 
+    var existingNav = $(':scope > nav', host);
+    var tabs = document.createElement('div');
+    tabs.className = 'doc-sidebar-tabs';
+    tabs.setAttribute('role', 'tablist');
+    var tocTab = document.createElement('button');
+    tocTab.type = 'button';
+    tocTab.className = 'doc-sidebar-tab';
+    tocTab.id = 'doc-sidebar-toc-tab';
+    tocTab.textContent = CFG.review.labels.tocTab;
+    tocTab.setAttribute('role', 'tab');
+    tocTab.setAttribute('aria-controls', 'doc-sidebar-toc-panel');
+    var reviewTab = document.createElement('button');
+    reviewTab.type = 'button';
+    reviewTab.className = 'doc-sidebar-tab';
+    reviewTab.id = 'doc-sidebar-review-tab';
+    reviewTab.setAttribute('role', 'tab');
+    reviewTab.setAttribute('aria-controls', 'doc-sidebar-review-panel');
+    tabs.appendChild(tocTab);
+    tabs.appendChild(reviewTab);
+    if (!existingNav) tocTab.hidden = true;
+
+    var tocPanel = document.createElement('div');
+    tocPanel.id = 'doc-sidebar-toc-panel';
+    tocPanel.setAttribute('role', 'tabpanel');
+    tocPanel.setAttribute('aria-labelledby', tocTab.id);
+    if (existingNav) tocPanel.appendChild(existingNav);
+    var reviewPanel = document.createElement('div');
+    reviewPanel.id = 'doc-sidebar-review-panel';
+    reviewPanel.setAttribute('role', 'tabpanel');
+    reviewPanel.setAttribute('aria-labelledby', reviewTab.id);
+
+    function selectTab(name) {
+      var reviewSelected = !existingNav || name === 'review';
+      tocTab.setAttribute('aria-selected', String(!reviewSelected));
+      reviewTab.setAttribute('aria-selected', String(reviewSelected));
+      tocTab.tabIndex = reviewSelected ? -1 : 0;
+      reviewTab.tabIndex = reviewSelected ? 0 : -1;
+      tocPanel.hidden = reviewSelected;
+      reviewPanel.hidden = !reviewSelected;
+    }
+    tocTab.addEventListener('click', function () { selectTab('toc'); });
+    reviewTab.addEventListener('click', function () { selectTab('review'); });
+    tabs.addEventListener('keydown', function (event) {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      if (!existingNav) return;
+      event.preventDefault();
+      var next = tocTab.getAttribute('aria-selected') === 'true' ? reviewTab : tocTab;
+      next.click();
+      next.focus();
+    });
+
     var menu = document.createElement('section');
     menu.className = 'doc-review-menu';
     var title = document.createElement('h2');
@@ -974,6 +1074,8 @@
     title.textContent = CFG.review.labels.menuTitle;
     var count = document.createElement('p');
     count.className = 'doc-review-count';
+    var commentList = document.createElement('div');
+    commentList.className = 'doc-review-list';
     var status = document.createElement('p');
     status.className = 'doc-review-status';
     status.setAttribute('role', 'status');
@@ -984,14 +1086,21 @@
 
     menu.appendChild(title);
     menu.appendChild(count);
+    menu.appendChild(commentList);
     menu.appendChild(status);
     menu.appendChild(submit);
-    host.appendChild(menu);
+    reviewPanel.appendChild(menu);
+    host.appendChild(tabs);
+    host.appendChild(tocPanel);
+    host.appendChild(reviewPanel);
     state.menu = menu;
     state.count = count;
+    state.commentList = commentList;
+    state.reviewTab = reviewTab;
     state.status = status;
     state.submit = submit;
     submit.addEventListener('click', function () { submitReview(state); });
+    selectTab(existingNav ? 'toc' : 'review');
     syncReviewMenu(state);
     return true;
   }
@@ -1166,6 +1275,64 @@
     document.body.appendChild(btn);
   }
 
+  function initLayoutToggle() {
+    var root = document.documentElement;
+    var stored = null;
+    try { stored = JSON.parse(window.localStorage.getItem(CFG.layoutToggle.storageKey)); } catch (e) { /* noop */ }
+    var mode = stored && stored.mode === 'margins' ? 'margins' : 'width';
+    var margin = stored && ['small', 'medium', 'large'].indexOf(stored.margin) >= 0 ? stored.margin : 'medium';
+    root.dataset.docLayout = mode;
+    root.dataset.docMargin = margin;
+
+    var control = document.createElement('details');
+    control.className = 'doc-layout-control';
+    if (CFG.themeToggle.enable) control.classList.add('doc-layout-control-with-theme');
+    var summary = document.createElement('summary');
+    summary.textContent = '余白';
+    summary.setAttribute('aria-label', CFG.layoutToggle.label);
+    control.appendChild(summary);
+    var menu = document.createElement('div');
+    menu.className = 'doc-layout-menu';
+
+    function addGroup(title, name, options, current) {
+      var fieldset = document.createElement('fieldset');
+      var legend = document.createElement('legend');
+      legend.textContent = title;
+      fieldset.appendChild(legend);
+      options.forEach(function (option) {
+        var label = document.createElement('label');
+        var input = document.createElement('input');
+        input.type = 'radio';
+        input.name = name;
+        input.value = option[0];
+        input.checked = option[0] === current;
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(option[1]));
+        fieldset.appendChild(label);
+      });
+      menu.appendChild(fieldset);
+    }
+    addGroup('レイアウト', 'doc-layout-mode', [['width', '本文の幅を固定'], ['margins', '左右の余白を固定']], mode);
+    addGroup('余白の大きさ', 'doc-layout-margin', [['small', '小'], ['medium', '中'], ['large', '大']], margin);
+    menu.addEventListener('change', function () {
+      var selectedMode = $('input[name="doc-layout-mode"]:checked', menu);
+      var selectedMargin = $('input[name="doc-layout-margin"]:checked', menu);
+      mode = selectedMode.value;
+      margin = selectedMargin.value;
+      root.dataset.docLayout = mode;
+      root.dataset.docMargin = margin;
+      try { window.localStorage.setItem(CFG.layoutToggle.storageKey, JSON.stringify({ mode: mode, margin: margin })); } catch (e) { /* noop */ }
+    });
+    control.appendChild(menu);
+    document.body.appendChild(control);
+    document.addEventListener('click', function (event) {
+      if (!control.contains(event.target)) control.open = false;
+    });
+    control.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') { control.open = false; summary.focus(); }
+    });
+  }
+
   /* ----------------------------------------------------------------------
      起動
      ---------------------------------------------------------------------- */
@@ -1187,6 +1354,9 @@
     }
     if (CFG.themeToggle.enable) {
       try { initThemeToggle(); } catch (e) { warn('テーマ切替', e); }
+    }
+    if (CFG.layoutToggle.enable) {
+      try { initLayoutToggle(); } catch (e) { warn('レイアウト切替', e); }
     }
     if (CFG.review.enable !== false) {
       initReview(content);
