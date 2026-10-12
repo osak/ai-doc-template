@@ -1,45 +1,45 @@
 # AGENTS.md
 
-このディレクトリは **AI Doc Template** の skill パッケージです。
-HTML でドキュメントを出力する作業を担当するエージェント向けの入口がこのファイルです。
+このファイルは **AI Doc Template リポジトリを開発・保守する Agent** 向けの指示です。
+このテンプレートを使って HTML 文書を生成する手順は [SKILL.md](./SKILL.md) にあります。
 
-## まず読むもの
+## リポジトリ内の役割
 
-**`SKILL.md`** に手順・骨組み・書き方のルールがすべて書いてあります。
-HTML ドキュメント（設計書・仕様書・レポート・報告書・手順書・技術記事など）を
-生成・整形するときは、まず `SKILL.md` を読んでから作業してください。
-
-必要に応じて次を追加で読みます。
-
-| ファイル | 読むタイミング |
+| ファイル | 役割 |
 | --- | --- |
-| `references/components.md` | パーツ（コールアウト・表・コード・図・数式など）の正確な書式 |
-| `references/config.md` | `DOC_CONFIG`・テーマ・本文幅・オフライン運用 |
-| `example.html` | 実際の組み上がりを確認したいとき |
-| `DESIGN.md` | 設計判断の背景。通常の出力作業では不要 |
+| `assets/doc.css` | 見た目の定義 |
+| `assets/doc.js` | 目次、図・数式、レビュー UI などの任意機能 |
+| `template.html` | 文書生成の元になる HTML |
+| `scripts/build-standalone.mjs` | ローカルの CSS / JS を単一 HTML へ埋め込む |
+| `SKILL.md`、`references/` | HTML を生成する Agent 向けの使い方 |
+| `DESIGN.md` | 実装上の設計判断と制約 |
+| `RELEASING.md` | CDN 向けリリースの準備、公開、検証 |
 
-## 3 行での要約
+## 変更時に守ること
 
-1. `template.html` をコピーして出力ファイルにする。
-2. `<article class="doc-body">` の中だけを、素のセマンティック HTML で書く。
-   クラスも `style` 属性も足さない。目次は書かない（`h2`/`h3` から自動生成される）。
-3. 単一ファイルが必要なら `node scripts/build-standalone.mjs 出力.html` を実行する。
+- `assets/doc.css` または `assets/doc.js` を変更する前に [DESIGN.md](./DESIGN.md) を読む。
+- 見た目の値は CSS の `:root` のカスタムプロパティに置く。CSS 本文に生の色コードを増やさない。
+- `doc.css` / `doc.js` に自作資産への相対パス依存を追加しない。単一ファイル化の前提を保つ。
+  Mermaid・KaTeX・highlight.js などの任意ライブラリは実行時に別途読み込む。
+- JavaScript が読み込めない場合も本文を読める状態を保つ。
+- `template.html` はローカルの `assets/` 参照を維持する。CDN URL は配布する文書側で指定する。
+  外部 URL は単一ファイル化スクリプトでは埋め込まれない。
+- HTML の使い方を変えたら、`README.md`、`SKILL.md`、該当する `references/` の説明も揃える。
 
-## ファイルを読めないエージェントの場合
+## 検証
 
-`references/paste-prompt.md` に、ファイル参照なしで完結する指示文を用意してあります。
-これをシステムプロンプトやカスタム指示に貼り付けてください。
+変更後は少なくとも次を実行する。
 
-## このリポジトリ自体を編集する場合
+```bash
+node --check assets/doc.js
+node scripts/build-standalone.mjs example.html
+```
 
-テンプレート本体（`assets/doc.css`、`assets/doc.js`）を変更するときは、
-`DESIGN.md` に書かれた設計方針を先に読んでください。特に次の 3 点は
-変更するとテンプレート全体の前提が崩れます。
+生成された `dist/example.standalone.html` に自作の CSS / JS が埋め込まれることも確認する。
+ブラウザでのライト・ダーク・印刷プレビュー確認は、ユーザーから明示的に求められた場合だけ行う。
 
-- 見た目の値はすべて `:root` のカスタムプロパティに置く（CSS 本文に生の色コードを書かない）
-- `doc.css` / `doc.js` から外部ファイルを参照しない（単一ファイル化が壊れる）
-- JavaScript が動かなくても文書が読める状態を保つ
+## CDN 向けリリース
 
-変更後は `node --check assets/doc.js` と `node scripts/build-standalone.mjs example.html` が通ることを
-確認してください。ブラウザでのライト/ダーク/印刷プレビュー確認は、ユーザーから明示的に
-求められた場合だけ行ってください。
+リリースを依頼された場合は [RELEASING.md](./RELEASING.md) に従う。
+HTML 生成や文書の編集だけの依頼ではタグ作成・push を行わない。
+公開済みタグは移動・上書きせず、修正は新しいバージョンで発行する。
