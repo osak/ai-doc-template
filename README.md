@@ -74,24 +74,11 @@ ai-doc-template/
 
 ## 使い方
 
-### 1. 分離配置（推奨）
+### 1. CDN 配信（標準）
 
-`assets/` を文書と同じ場所に置き、HTML から参照する。
-
-```html
-<link rel="stylesheet" href="assets/doc.css">
-...
-<script src="assets/doc.js" defer></script>
-```
-
-複数の文書でスタイルを共有でき、`doc.css` を直せば全文書に反映される。
-`template.html` をコピーして本文を書き始めるのが最短ルート。
-
-### 公開済み版を CDN から読む
-
-公開 GitHub リポジトリのリリースタグにある `assets/` は、jsDelivr から読める。
-文書を置く場所へ `assets/` をコピーしない場合に使う。次は `v0.1.0` を**公開した後**の例で、
-実際には利用するタグに置き換える。
+通常の文書は、公開 GitHub リポジトリのリリースタグにある CSS と JS を jsDelivr から読む。
+`template.html` をコピーし、CSS と JS の参照先を公開済みタグの URL に変える。
+次は `v0.1.0` を**公開した後**の例で、実際には利用するタグに置き換える。
 
 ```html
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/osak/ai-doc-template@v0.1.0/assets/doc.css">
@@ -103,16 +90,28 @@ CSS と JS は必ず同じタグを指定する。配布する文書では `@mai
 新しい版に切り替えるときは両方の URL のタグを更新する。タグ付きファイルは長期間
 キャッシュされるため、公開後のタグを移動・上書きしない。
 
+公開済みタグがまだない場合は、次のローカル分離配置を使う。
+リリースの準備、タグの作成、公開後の確認は [RELEASING.md](./RELEASING.md) に記載する。
+
+### 2. ローカル分離配置
+
+オフラインで使う場合や `assets/` を個別に編集する場合は、文書と同じ場所に置いて参照する。
+
+```html
+<link rel="stylesheet" href="assets/doc.css">
+...
+<script src="assets/doc.js" defer></script>
+```
+
+複数の文書でスタイルを共有でき、`doc.css` を直せば全文書に反映される。
+
+### 3. 単一ファイル化
+
+配布・添付・アーカイブ用に 1 ファイルへ固める。
 `template.html` と単一ファイル化する元の HTML はローカルの `assets/` 参照を維持する。
 `scripts/build-standalone.mjs` は外部 URL を埋め込まないため、CDN 参照へ変更した HTML を
 入力すると CSS / JS が外部参照のまま残る。自作の CSS / JS を文書へ埋め込む場合は
 ローカル参照から単一ファイル化する。Mermaid / KaTeX / highlight.js は引き続き CDN 参照となる。
-
-リリースの準備、タグの作成、公開後の確認は [RELEASING.md](./RELEASING.md) に記載する。
-
-### 2. 単一ファイル化
-
-配布・添付・アーカイブ用に 1 ファイルへ固める。
 
 ```bash
 node scripts/build-standalone.mjs example.html
@@ -126,13 +125,13 @@ node scripts/build-standalone.mjs docs/*.html --outdir dist
 ローカル画像は `data:` URI として埋め込まれる（`--keep-assets` で無効化）。
 Mermaid / KaTeX / highlight.js は CDN 参照のまま残る（埋め込むと数 MB になるため）。
 
-### 3. 手でコピペして単一ファイルにする
+### 4. 手でコピペして単一ファイルにする
 
 ビルドを回さない場合は、`doc.css` の中身を `<style>` に、
 `doc.js` の中身を `<script>` に貼るだけでよい。両ファイルとも
 外部ファイルを参照していないので、貼り付ければそれで完結する。
 
-### 4. 人間のレビューを AI に返す
+### 5. 人間のレビューを AI に返す
 
 `data-overmind` の `fileserver` で文書を開くと、見出し・段落・リスト項目・表の本文行・定義項目の右側に三点リーダーが現れる。
 コメントは入力中から `localStorage` に下書き保存され、サイドバーの「レビュー」タブで一覧できる。項目を押すと本文の該当箇所へ移動する。サイドバーの
