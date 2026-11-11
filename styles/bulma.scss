@@ -1,0 +1,62 @@
+@use "bulma/sass/utilities/initial-variables" as iv with (
+  $block-spacing: var(--doc-space-4)
+);
+@use "bulma/sass/utilities/derived-variables" with (
+  $colors: (
+    "link": iv.$blue,
+    "info": iv.$cyan,
+    "success": iv.$green,
+    "warning": iv.$yellow,
+    "danger": iv.$red
+  )
+);
+@use "bulma/sass/elements/content" with (
+  $content-heading-color: var(--doc-c-text),
+  $content-heading-line-height: var(--doc-leading-tight),
+  $content-block-margin-bottom: var(--doc-space-3),
+  $content-blockquote-background-color: transparent,
+  $content-blockquote-border-left: 3px solid var(--doc-c-border-strong),
+  $content-blockquote-padding: var(--doc-space-1) var(--doc-space-5),
+  $content-table-cell-border: var(--doc-rule) solid var(--doc-c-border),
+  $content-table-cell-padding: var(--doc-space-2) var(--doc-space-3),
+  $content-table-cell-heading-color: var(--doc-c-text)
+);
+@use "bulma/sass/elements/table" with (
+  $table-row-active-background-color: var(--bulma-link),
+  $table-row-active-color: var(--bulma-link-invert)
+);
+@use "bulma/sass/elements/box" with (
+  $box-background-color: var(--doc-c-surface),
+  $box-color: var(--doc-c-text),
+  $box-radius: var(--doc-radius-md),
+  $box-shadow: none,
+  $box-padding: var(--doc-space-3) var(--doc-space-4)
+);
+@use "bulma/sass/elements/notification" with (
+  $notification-padding: var(--doc-space-3) var(--doc-space-4),
+  $notification-radius: var(--doc-radius-md)
+);
+@use "bulma/sass/elements/tag";
+@use "bulma/sass/themes/light";
+@use "bulma/sass/themes/dark";
+@use "bulma/sass/themes/setup";
+
+:root {
+  @include light.light-theme;
+  @include setup.setup-theme;
+
+  --bulma-text-h: var(--bulma-scheme-h);
+  --bulma-text-s: var(--bulma-scheme-s);
+}
+
+@media screen {
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      @include dark.dark-theme;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    @include dark.dark-theme;
+  }
+}

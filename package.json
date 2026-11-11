@@ -1,0 +1,11 @@
+{
+  "name": "ai-doc-template",
+  "private": true,
+  "scripts": {
+    "build:css": "node scripts/build-css.mjs"
+  },
+  "devDependencies": {
+    "bulma": "1.0.4",
+    "sass": "1.93.3"
+  }
+}

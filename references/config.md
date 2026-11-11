@@ -133,8 +133,8 @@ window.DOC_CONFIG = {
 
 ## デザイントークン
 
-色・余白・タイプスケールはすべて `assets/doc.css` 冒頭の `:root` にある。
-CSS 本文には（ハイライト定義を除き）生の色コードが出てこないので、ここだけで全体が変わる。
+文書の色・余白・タイプスケールは `styles/doc.css` 冒頭の `:root` で調整する。
+配布用 `assets/doc.css` は `npm run build:css` で再生成する。
 
 よく触るもの:
 
@@ -142,7 +142,7 @@ CSS 本文には（ハイライト定義を除き）生の色コードが出て�
 :root {
   --doc-c-accent: #1f5fa9;    /* リンク・目次の現在位置・強調 */
   --doc-measure: 46rem;       /* 本文の最大幅 */
-  --doc-leading-body: 1.85;   /* 本文の行送り */
+  --doc-leading-content: 1.65; /* 本文の行送り */
   --doc-radius-md: 8px;       /* 角丸 */
   --doc-toc-width: 17rem;     /* 目次サイドバーの幅 */
 }

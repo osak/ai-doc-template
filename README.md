@@ -3,7 +3,7 @@
 AI に技術ドキュメントやレポートを **HTML で出力させる**ための共通テンプレート。
 このディレクトリ全体が 1 つの **skill パッケージ**になっている。
 
-- CSS / JavaScript / HTML は分離。HTML からは `link` と `script` で読むだけ
+- Bulma の本文・表・タグ・通知・ボックスを `assets/doc.css` に同梱。HTML から CSS と JavaScript を読むだけ
 - 同じ HTML を **1 ファイルに固めたビルド**も出せる（コピペ配布・メール添付向け）
 - ライト / ダーク自動切替、A4 印刷対応、日本語タイポグラフィ前提
 - 本文幅固定と左右余白固定の切替、余白サイズの調整
@@ -56,13 +56,15 @@ ai-doc-template/
 ├── example.html                 全パーツを使ったサンプル文書
 ├── review-example.html          ブロックレビュー UI の動作確認用文書
 ├── assets/
-│   ├── doc.css                  スタイル（唯一の見た目の定義）
+│   ├── doc.css                  配布用 CSS（Bulma と文書スタイルを結合）
 │   └── doc.js                   目次・コピーボタン・図・数式（任意）
 ├── references/
 │   ├── components.md            パーツ完全リファレンス
 │   ├── config.md                DOC_CONFIG・テーマ・トークン・オフライン運用
 │   └── paste-prompt.md          ファイル参照なしで完結する指示文
+├── styles/                     文書 CSS と Bulma の組み込み設定
 ├── scripts/
+│   ├── build-css.mjs            配布用 CSS を生成
 │   └── build-standalone.mjs     単一 HTML 化スクリプト（依存なし）
 └── dist/                        ビルド結果の出力先
 ```
@@ -74,23 +76,23 @@ ai-doc-template/
 
 ## 使い方
 
-### 1. CDN 配信（標準）
+### 1. CDN 配信
 
 通常の文書は、公開 GitHub リポジトリのリリースタグにある CSS と JS を jsDelivr から読む。
 `template.html` をコピーし、CSS と JS の参照先を公開済みタグの URL に変える。
-次は `v0.1.0` を**公開した後**の例で、実際には利用するタグに置き換える。
+次の `vX.Y.Z` は、タグの `template.html` に `class="doc-body content"` がある公開版に置き換える。
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/osak/ai-doc-template@v0.1.0/assets/doc.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/osak/ai-doc-template@vX.Y.Z/assets/doc.css">
 ...
-<script src="https://cdn.jsdelivr.net/gh/osak/ai-doc-template@v0.1.0/assets/doc.js" defer></script>
+<script src="https://cdn.jsdelivr.net/gh/osak/ai-doc-template@vX.Y.Z/assets/doc.js" defer></script>
 ```
 
 CSS と JS は必ず同じタグを指定する。配布する文書では `@main` やバージョン省略を使わず、
 新しい版に切り替えるときは両方の URL のタグを更新する。タグ付きファイルは長期間
 キャッシュされるため、公開後のタグを移動・上書きしない。
 
-公開済みタグがまだない場合は、次のローカル分離配置を使う。
+互換タグがまだない場合は、次のローカル分離配置または単一ファイル化を使う。
 リリースの準備、タグの作成、公開後の確認は [RELEASING.md](./RELEASING.md) に記載する。
 
 ### 2. ローカル分離配置
@@ -110,7 +112,7 @@ CSS と JS は必ず同じタグを指定する。配布する文書では `@mai
 配布・添付・アーカイブ用に 1 ファイルへ固める。
 `template.html` と単一ファイル化する元の HTML はローカルの `assets/` 参照を維持する。
 `scripts/build-standalone.mjs` は外部 URL を埋め込まないため、CDN 参照へ変更した HTML を
-入力すると CSS / JS が外部参照のまま残る。自作の CSS / JS を文書へ埋め込む場合は
+入力すると CSS / JS が外部参照のまま残る。配布用の CSS / JS を文書へ埋め込む場合は
 ローカル参照から単一ファイル化する。Mermaid / KaTeX / highlight.js は引き続き CDN 参照となる。
 
 ```bash
@@ -164,7 +166,7 @@ AI にはこの 2 ファイルを一緒に読ませる。レビュー JSON に�
   <aside class="doc-toc" id="doc-toc"></aside>   <!-- 中身は JS が生成 -->
   <div class="doc-main" id="main">
     <header class="doc-header"> … タイトルとメタ情報 … </header>
-    <article class="doc-body">  … 本文（ここだけ書けばよい） … </article>
+    <article class="doc-body content">  … 本文（ここだけ書けばよい） … </article>
     <footer class="doc-footer"> … 出典・更新日 … </footer>
   </div>
 </div>
@@ -174,14 +176,14 @@ AI にはこの 2 ファイルを一緒に読ませる。レビュー JSON に�
 `<h2>` `<h3>` `<p>` `<ul>` `<table>` `<pre>` `<blockquote>` はクラスなしで整う。
 `<h2>` / `<h3>` が自動的に目次になる。
 
-### 覚えるクラスは 5 つだけ
+### 強調とパネル
 
 | クラス | 用途 |
 | --- | --- |
 | `.lead` | 冒頭の要約段落 |
-| `.callout` + 種別 | 注意 / 補足 / 警告のボックス |
-| `.badge` + 種別 | ステータスラベル |
-| `.card` / `.doc-grid` | カードの並列配置 |
+| `.notification` + 種別 + `.is-light` | 注意 / 補足 / 警告 |
+| `.tag` | ステータスラベル |
+| `.doc-grid` / `.box` | パネルの並列配置 |
 | `.doc-meta` | ヘッダのメタ情報リスト |
 
 ---
@@ -196,11 +198,13 @@ AI にはこの 2 ファイルを一緒に読ませる。レビュー JSON に�
 <!-- 冒頭の要約 -->
 <p class="lead">この文書が何で、誰向けで、何が分かるか。</p>
 
-<!-- 注意書き（info / success / warn / danger / note） -->
-<div class="callout callout-warn" data-title="注意"><p>本文。</p></div>
+<!-- 注意書き -->
+<div class="notification is-warning is-light">
+  <p><strong>注意</strong><br>本文。</p>
+</div>
 
-<!-- ステータス（badge / badge-info / success / warn / danger） -->
-<span class="badge badge-success">承認済み</span>
+<!-- ステータス -->
+<span class="tag is-success is-light">承認済み</span>
 
 <!-- コード（コピーボタンは自動で付く） -->
 <pre><code class="language-go">func main() {}</code></pre>
@@ -224,10 +228,12 @@ AI にはこの 2 ファイルを一緒に読ませる。レビュー JSON に�
   <dd>採用理由や制約を文章で説明する。</dd>
 </dl>
 
-<!-- カードと数値ハイライト -->
+<!-- 見出し直下に並べる数値パネル -->
+<h2>結論</h2>
 <div class="doc-grid">
-  <div class="card">
-    <span class="stat"><span class="stat-value">3.1s</span><span class="stat-label">配信遅延</span></span>
+  <div class="box">
+    <span class="stat"><span class="stat-value">3.1 s</span><span class="stat-label">配信遅延</span></span>
+    <p>5 秒間隔のポーリングが遅延の下限を決める。</p>
   </div>
 </div>
 
@@ -303,14 +309,22 @@ Mermaid と数式は、該当する記法がページにあるときだけライ
 
 ## 見た目のカスタマイズ
 
-`doc.css` 冒頭の `:root` にあるトークンを書き換えるだけでよい。
-CSS 本文に生の色コードは書かれていないので、ここだけで全体が変わる。
+文書の見た目は `styles/doc.css` 冒頭の `:root` にあるトークンで調整できる。
+テンプレート本体を変更したら、リポジトリのルートで配布用 CSS を再生成する。
+
+```bash
+npm ci
+npm run build:css
+```
+
+Bulma の組み込み設定は `styles/bulma.scss` にある。npm が必要なのは配布用 CSS の再生成時だけ。
+文書の作成・閲覧・単一ファイル化は同梱済みの `assets/doc.css` と `assets/doc.js` を使う。
 
 ```css
 :root {
   --doc-c-accent: #1f5fa9;   /* リンク・目次の現在位置・強調 */
   --doc-measure: 46rem;      /* 本文の最大幅 */
-  --doc-leading-body: 1.85;  /* 本文の行送り */
+  --doc-leading-content: 1.65; /* 本文の行送り */
   --doc-radius-md: 8px;      /* 角丸 */
 }
 ```

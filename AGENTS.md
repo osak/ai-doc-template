@@ -7,7 +7,8 @@
 
 | ファイル | 役割 |
 | --- | --- |
-| `assets/doc.css` | 見た目の定義 |
+| `styles/doc.css`、`styles/bulma.scss` | 文書の見た目と Bulma の組み込み設定 |
+| `assets/doc.css` | 両方を結合した配布用 CSS（生成物） |
 | `assets/doc.js` | 目次、図・数式、レビュー UI などの任意機能 |
 | `template.html` | 文書生成の元になる HTML |
 | `scripts/build-standalone.mjs` | ローカルの CSS / JS を単一 HTML へ埋め込む |
@@ -17,7 +18,8 @@
 
 ## 変更時に守ること
 
-- `assets/doc.css` または `assets/doc.js` を変更する前に [DESIGN.md](./DESIGN.md) を読む。
+- スタイルのソースまたは `assets/doc.js` を変更する前に [DESIGN.md](./DESIGN.md) を読む。
+- スタイルのソースを変更したら `npm run build:css` で配布用 CSS を再生成する。開発依存の導入には `npm ci` を使う。
 - 見た目の値は CSS の `:root` のカスタムプロパティに置く。CSS 本文に生の色コードを増やさない。
 - `doc.css` / `doc.js` に自作資産への相対パス依存を追加しない。単一ファイル化の前提を保つ。
   Mermaid・KaTeX・highlight.js などの任意ライブラリは実行時に別途読み込む。
@@ -35,7 +37,7 @@ node --check assets/doc.js
 node scripts/build-standalone.mjs example.html
 ```
 
-生成された `dist/example.standalone.html` に自作の CSS / JS が埋め込まれることも確認する。
+生成された `dist/example.standalone.html` に Bulma を含む CSS と JS が埋め込まれることも確認する。
 ブラウザでのライト・ダーク・印刷プレビュー確認は、ユーザーから明示的に求められた場合だけ行う。
 
 ## CDN 向けリリース
