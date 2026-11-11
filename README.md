@@ -78,9 +78,8 @@ ai-doc-template/
 
 ### 1. CDN 配信
 
-通常の文書は、公開 GitHub リポジトリのリリースタグにある CSS と JS を jsDelivr から読む。
-`template.html` をコピーし、CSS と JS の参照先を公開済みタグの URL に変える。
-次の `vX.Y.Z` は、タグの `template.html` に `class="doc-body content"` がある公開版に置き換える。
+公開版の `template.html` をコピーし、同じタグの CSS と JS を jsDelivr から読む。
+次の `vX.Y.Z` は、テンプレートを取得した公開タグに置き換える。
 
 ```html
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/osak/ai-doc-template@vX.Y.Z/assets/doc.css">
@@ -92,7 +91,7 @@ CSS と JS は必ず同じタグを指定する。配布する文書では `@mai
 新しい版に切り替えるときは両方の URL のタグを更新する。タグ付きファイルは長期間
 キャッシュされるため、公開後のタグを移動・上書きしない。
 
-互換タグがまだない場合は、次のローカル分離配置または単一ファイル化を使う。
+Bulma 版を公開前に使う場合は、同梱ファイルでローカル分離配置または単一ファイル化を行う。
 リリースの準備、タグの作成、公開後の確認は [RELEASING.md](./RELEASING.md) に記載する。
 
 ### 2. ローカル分離配置

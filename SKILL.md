@@ -14,12 +14,12 @@ description: HTML でドキュメントを出力するための共通デザイ�
 
 ## 手順
 
-1. **配布形態を決める。** 互換タグがある場合は CDN 配信にする。
-   - CDN 配信 — 公開済みのリリースタグから CSS と JS を読む
+1. **配布形態を決める。**
+   - CDN 配信 — テンプレートと同じ公開タグの CSS と JS を読む
    - ローカル分離配置 — オフライン利用や `assets/` の個別編集が必要な場合
    - 単一ファイル — メール添付・チャット貼り付け・アーカイブ用。手順 4 でビルドする
 2. **`template.html` をコピーして出力ファイルにする。** ゼロから HTML を書き起こさない。
-   CDN 配信では、コピーした HTML の CSS と JS の参照先を後述の公開済みタグの URL に変える。
+   CDN 配信では、コピー元と同じタグを CSS と JS の URL に指定する。
 3. **`<article class="doc-body content">` の中に本文を書く。** 下の「本文の書き方」に従う。
 4. 単一ファイルにする場合は CSS と JS を出力 HTML に隣接する `assets/` に置き、
    この skill の `scripts/build-standalone.mjs` に出力 HTML のパスを渡す。
@@ -186,11 +186,10 @@ flowchart LR
 
 ## CDN から CSS / JS を読む
 
-通常の文書では、公開済みタグを確認して CSS と JS の両方を同じタグの
-`https://cdn.jsdelivr.net/gh/osak/ai-doc-template@<タグ>/assets/` 以下へ置き換える。
-タグの指定がなければ、タグの `template.html` に `class="doc-body content"` がある最新の安定版を選ぶ。
-互換タグを確認できない場合は、この skill の `assets/doc.css` と `assets/doc.js` を使って
-ローカル分離配置または単一ファイルで渡す。配布 URL は確認したタグで固定する。
+公開版の `template.html` をコピーし、同じタグの `doc.css` と `doc.js` を
+`https://cdn.jsdelivr.net/gh/osak/ai-doc-template@<タグ>/assets/` から読み込む。
+この書式で CDN 配信するには、Bulma を同梱した版のタグを指定する。公開前の版を使う場合は、
+同梱の CSS と JS を使い、ローカル分離配置または単一ファイルで渡す。
 
 既存文書のレビュー対応では、元の HTML が使う版とマークアップを引き継ぐ。
 
