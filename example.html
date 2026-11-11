@@ -32,16 +32,42 @@
         <div><dt>作成日</dt><dd>2026-09-06</dd></div>
         <div><dt>バージョン</dt><dd>1.2</dd></div>
         <div><dt>対象読者</dt><dd>バックエンド / SRE</dd></div>
-        <div><dt>ステータス</dt><dd><span class="badge badge-success">レビュー済み</span></dd></div>
+        <div><dt>ステータス</dt><dd><span class="tag is-success is-light">レビュー済み</span></dd></div>
       </dl>
     </header>
 
-    <article class="doc-body">
+    <article class="doc-body content">
 
       <p class="lead">現行のイベント配信は 5 秒間隔の RDB ポーリングで実装されており、
       配信遅延の中央値が 3.1 秒、ピーク時には 12 秒に達している。
       本書では Kafka を用いた push 型配信への移行方針、互換性の担保、
       および 4 週間の段階的切替計画を示す。</p>
+
+      <h2>現行の配信状況</h2>
+
+      <div class="doc-grid">
+        <div class="box">
+          <span class="stat">
+            <span class="stat-value">3.1 s</span>
+            <span class="stat-label">現行の配信遅延（中央値）</span>
+          </span>
+          <p data-review-id="baseline-latency">5 秒間隔のポーリングが遅延の下限を決める。</p>
+        </div>
+        <div class="box">
+          <span class="stat">
+            <span class="stat-value">1,400万</span>
+            <span class="stat-label">日次イベント数</span>
+          </span>
+          <p>導入当初の 20 万件から増加し、配信基盤の見直しが必要になった。</p>
+        </div>
+        <div class="box">
+          <span class="stat">
+            <span class="stat-value">18</span>
+            <span class="stat-label">コンシューマ系統数</span>
+          </span>
+          <p>全系統がプライマリをポーリングするため、読み取り負荷が集中する。</p>
+        </div>
+      </div>
 
       <h2>背景と課題</h2>
 
@@ -55,29 +81,9 @@
         <li><strong>重複処理</strong> — 取得と既読更新が非アトミックで、まれに二重配信が起きる</li>
       </ul>
 
-      <div class="doc-grid">
-        <div class="card">
-          <span class="stat">
-            <span class="stat-value">3.1s</span>
-            <span class="stat-label">現行の配信遅延（中央値）</span>
-          </span>
-        </div>
-        <div class="card">
-          <span class="stat">
-            <span class="stat-value">1,400万</span>
-            <span class="stat-label">日次イベント数</span>
-          </span>
-        </div>
-        <div class="card">
-          <span class="stat">
-            <span class="stat-value">18</span>
-            <span class="stat-label">コンシューマ系統数</span>
-          </span>
-        </div>
-      </div>
-
-      <div class="callout callout-warn" data-title="制約">
-        <p>移行期間中も既存コンシューマは無停止で動作し続ける必要がある。
+      <div class="notification is-warning is-light">
+        <p><strong>制約</strong><br>
+        移行期間中も既存コンシューマは無停止で動作し続ける必要がある。
         ダウンタイムを伴う一括切替は選択肢に入らない。</p>
       </div>
 
@@ -117,28 +123,28 @@ flowchart LR
             <td>48&nbsp;ms</td>
             <td class="num">¥182,000</td>
             <td>パーティション単位</td>
-            <td><span class="badge badge-success">採用</span></td>
+            <td><span class="tag is-success is-light">採用</span></td>
           </tr>
           <tr>
             <th scope="row">Amazon SQS FIFO</th>
             <td>110&nbsp;ms</td>
             <td class="num">¥96,000</td>
             <td>メッセージグループ単位</td>
-            <td><span class="badge">次点</span></td>
+            <td><span class="tag">次点</span></td>
           </tr>
           <tr>
             <th scope="row">NATS JetStream</th>
             <td>22&nbsp;ms</td>
             <td class="num">¥64,000</td>
             <td>ストリーム単位</td>
-            <td><span class="badge badge-warn">運用実績なし</span></td>
+            <td><span class="tag is-warning is-light">運用実績なし</span></td>
           </tr>
           <tr>
             <th scope="row">現行（RDB ポーリング）</th>
             <td>12,000&nbsp;ms</td>
             <td class="num">¥0</td>
             <td>あり</td>
-            <td><span class="badge badge-danger">要件未達</span></td>
+            <td><span class="tag is-danger is-light">要件未達</span></td>
           </tr>
         </tbody>
       </table>
@@ -191,8 +197,9 @@ VALUES ($1, $2, now())
 ON CONFLICT (event_id, consumer) DO NOTHING
 RETURNING event_id;</code></pre>
 
-      <div class="callout callout-info" data-title="補足">
-        <p><code>RETURNING</code> が空を返した場合は既に処理済みなので、
+      <div class="notification is-info is-light">
+        <p><strong>補足</strong><br>
+        <code>RETURNING</code> が空を返した場合は既に処理済みなので、
         業務処理をスキップしてオフセットだけ進める。</p>
       </div>
 
@@ -215,22 +222,22 @@ RETURNING event_id;</code></pre>
       次段階に進まない。</p>
 
       <div class="doc-grid doc-grid-2">
-        <div class="card">
+        <div class="box">
           <h4>第 1 週 — 二重書き込み</h4>
           <p class="doc-small doc-muted">Outbox への書き込みを開始する。読み出しは従来のまま。
           終了条件: 24 時間で欠損 0 件。</p>
         </div>
-        <div class="card">
+        <div class="box">
           <h4>第 2 週 — シャドウ消費</h4>
           <p class="doc-small doc-muted">新コンシューマを副作用なしで動かし、結果を突合する。
           終了条件: 不一致率 &lt; 0.01%。</p>
         </div>
-        <div class="card">
+        <div class="box">
           <h4>第 3 週 — 部分切替</h4>
           <p class="doc-small doc-muted">影響の小さい 5 系統を Kafka 経由に切り替える。
           終了条件: 1 週間 SLO 違反なし。</p>
         </div>
-        <div class="card">
+        <div class="box">
           <h4>第 4 週 — 全面切替</h4>
           <p class="doc-small doc-muted">残り 13 系統を切り替え、ポーリングを停止する。
           終了条件: 全系統の遅延 p99 &lt; 500&nbsp;ms。</p>
@@ -246,8 +253,9 @@ RETURNING event_id;</code></pre>
         <li><input type="checkbox" disabled> 切り戻し訓練を第 2 週中に 1 回実施する</li>
       </ul>
 
-      <div class="callout callout-danger" data-title="やってはいけないこと">
-        <p>第 4 週の完了前に <code>events</code> テーブルを削除しないこと。
+      <div class="notification is-danger is-light">
+        <p><strong>やってはいけないこと</strong><br>
+        第 4 週の完了前に <code>events</code> テーブルを削除しないこと。
         切り戻し時の唯一の復旧経路である。</p>
       </div>
 

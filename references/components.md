@@ -37,7 +37,7 @@
     <div><dt>作成日</dt><dd>2026-09-06</dd></div>
     <div><dt>バージョン</dt><dd>1.2</dd></div>
     <div><dt>対象読者</dt><dd>バックエンド / SRE</dd></div>
-    <div><dt>ステータス</dt><dd><span class="badge badge-success">レビュー済み</span></dd></div>
+    <div><dt>ステータス</dt><dd><span class="tag is-success is-light">レビュー済み</span></dd></div>
   </dl>
 </header>
 ```
@@ -71,30 +71,26 @@
 ## コールアウト
 
 ```html
-<div class="callout callout-info" data-title="補足"><p>本文。</p></div>
-<div class="callout callout-success" data-title="決定事項"><p>本文。</p></div>
-<div class="callout callout-warn" data-title="注意"><p>本文。</p></div>
-<div class="callout callout-danger" data-title="やってはいけないこと"><p>本文。</p></div>
-<div class="callout callout-note" data-title="メモ"><p>本文。</p></div>
+<div class="notification is-warning is-light">
+  <p><strong>注意</strong><br>本文。</p>
+</div>
 ```
 
-- `data-title` を省略すると見出しなしの枠になる。
-- 種別を省略（`class="callout"` だけ）すると info 相当。
-- 中には複数の段落やリストを入れてよい。
-- **色だけで意味を伝えない。** 印刷や色覚特性を考え、`data-title` に「注意」「補足」と
-  文字で書く。
+- 種別は `.is-info`、`.is-success`、`.is-warning`、`.is-danger`。淡色の `.is-light` と組み合わせる。
+- 印刷でも意味が伝わるように「注意」「補足」などのラベルを `<strong>` に書く。
+- 中には複数の段落やリストも入れられる。段落はレビュー対象になる。
 
 ## バッジ
 
 ```html
-<span class="badge">未着手</span>
-<span class="badge badge-info">レビュー中</span>
-<span class="badge badge-success">完了</span>
-<span class="badge badge-warn">要確認</span>
-<span class="badge badge-danger">停止中</span>
+<span class="tag">未着手</span>
+<span class="tag is-info is-light">レビュー中</span>
+<span class="tag is-success is-light">完了</span>
+<span class="tag is-warning is-light">要確認</span>
+<span class="tag is-danger is-light">停止中</span>
 ```
 
-表のセル内・メタ情報・見出し横で使う。段落の途中に散らさない。
+表のセル、メタ情報、見出しの横で使う。
 
 ## コード
 
@@ -145,7 +141,7 @@
       <th scope="row">Kafka (MSK)</th>
       <td>48 ms</td>
       <td class="num">¥182,000</td>
-      <td><span class="badge badge-success">採用</span></td>
+      <td><span class="tag is-success is-light">採用</span></td>
     </tr>
   </tbody>
 </table>
@@ -162,23 +158,30 @@
 ## カード・数値ハイライト
 
 ```html
+<h2>結論</h2>
 <div class="doc-grid">
-  <div class="card">
+  <div class="box">
     <span class="stat">
-      <span class="stat-value">3.1s</span>
+      <span class="stat-value">3.1 s</span>
       <span class="stat-label">現行の配信遅延（中央値）</span>
     </span>
+    <p>5 秒間隔のポーリングが遅延の下限を決める。</p>
   </div>
-  <div class="card">
-    <h4>カード見出し</h4>
-    <p>本文。</p>
+  <div class="box">
+    <span class="stat">
+      <span class="stat-value">18</span>
+      <span class="stat-label">コンシューマ系統数</span>
+    </span>
+    <p>各系統がプライマリをポーリングしている。</p>
   </div>
 </div>
 ```
 
-- `.doc-grid` は最小 14rem で自動折り返し。`.doc-grid-2` は最小 16rem（2 列寄り）。
-- カードは 2〜6 個程度。並べすぎると一覧性が落ちる。
-- `.stat-value` は短い数値だけ入れる。単位込みで 8 文字以内が目安。
+- `.doc-grid` に並べるパネルを置く。高さは行ごとに揃い、幅が足りなくなると自動で折り返す。
+- `.stat-value` は単位込みで 8 文字程度、`.stat-label` は数値が何を示すかを書く。
+  判断に必要な背景や影響は続く `<p>` に書く。data-overmind ではその段落にコメントできる。
+- 数値を伴わないパネルは `.box` に短い見出しと段落を置く。長めのパネルには
+  `class="doc-grid doc-grid-2"` で最小幅を 14rem から 16rem に広げられる。
 
 ## リスト
 

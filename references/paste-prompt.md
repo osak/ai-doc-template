@@ -35,7 +35,7 @@ HTML でドキュメントを出力するときは、次の骨組みに従うこ
         <div><dt>バージョン</dt><dd>1.0</dd></div>
       </dl>
     </header>
-    <article class="doc-body">
+    <article class="doc-body content">
       <p class="lead">冒頭の要約。</p>
       <h2>見出し</h2>
       <p>本文。</p>
@@ -51,7 +51,7 @@ HTML でドキュメントを出力するときは、次の骨組みに従うこ
 </html>
 
 ルール:
-- 本文は <article class="doc-body"> の中だけに書く。
+- 本文は <article class="doc-body content"> の中だけに書く。
 - 見出し・段落・リスト・表・コードは素のセマンティック HTML で書く。
   クラスは付けない。スタイルは CSS 側で当たる。
 - 目次は書かない。h2 / h3 から自動生成される。
@@ -60,9 +60,10 @@ HTML でドキュメントを出力するときは、次の骨組みに従うこ
   <table> ではなく <dl><dt><dd> の定義リストにする。
 - 使ってよい追加クラスは以下だけ:
     .lead                     冒頭の要約段落
-    .callout .callout-info|success|warn|danger|note  （data-title="見出し"）
-    .badge .badge-info|success|warn|danger           ステータスラベル
-    .card / .doc-grid         カードの並列配置
+    .notification .is-info|is-success|is-warning|is-danger .is-light  （ラベルは strong）
+    .tag .is-info|is-success|is-warning|is-danger .is-light  ステータスラベル
+    .doc-grid / .box           パネルの並列配置
+    .stat / .stat-value / .stat-label  数値パネル。説明は後続の p
     .code-block               ファイル名つきコードブロック（data-filename="…"）
     .checklist                チェックリストの ul
     .num                      表の数値列（th/td）
@@ -85,7 +86,7 @@ HTML でドキュメントを出力するときは、次の骨組みに従うこ
   <aside class="doc-toc" id="doc-toc"></aside>
   <div class="doc-main" id="main">
     <header class="doc-header">…</header>
-    <article class="doc-body">…本文…</article>
+    <article class="doc-body content">…本文…</article>
     <footer class="doc-footer">…</footer>
   </div>
 </div>
@@ -107,16 +108,18 @@ head で assets/doc.css、body 末尾で assets/doc.js を読み込む。
 メタ情報:
   <dl class="doc-meta">
     <div><dt>作成日</dt><dd>2026-09-06</dd></div>
-    <div><dt>ステータス</dt><dd><span class="badge badge-success">承認済み</span></dd></div>
+    <div><dt>ステータス</dt><dd><span class="tag is-success is-light">承認済み</span></dd></div>
   </dl>
 
 注意書き:
-  <div class="callout callout-warn" data-title="注意"><p>…</p></div>
-  種別: callout-info / callout-success / callout-warn / callout-danger / callout-note
+  <div class="notification is-warning is-light">
+    <p><strong>注意</strong><br>本文。</p>
+  </div>
+  色は is-info / is-success / is-warning / is-danger から選ぶ。
 
 ステータスラベル:
-  <span class="badge badge-success">完了</span>
-  種別: badge / badge-info / badge-success / badge-warn / badge-danger
+  <span class="tag is-success is-light">完了</span>
+  無色は tag のみ。色付きには通知と同じ色クラスと is-light を使う。
 
 コード:
   <pre><code class="language-go">…</code></pre>
@@ -139,11 +142,13 @@ head で assets/doc.css、body 末尾で assets/doc.js を読み込む。
     <dd>複数の文を含む説明。</dd>
   </dl>
 
-カード・数値:
+見出し直下の数値パネル:
+  <h2>結論</h2>
   <div class="doc-grid">
-    <div class="card">
-      <span class="stat"><span class="stat-value">3.1s</span>
-      <span class="stat-label">説明</span></span>
+    <div class="box">
+      <span class="stat"><span class="stat-value">3.1 s</span>
+      <span class="stat-label">配信遅延</span></span>
+      <p>5 秒間隔のポーリングが遅延の下限を決める。</p>
     </div>
   </div>
 

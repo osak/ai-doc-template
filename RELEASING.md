@@ -45,7 +45,10 @@ node --check assets/doc.js
 node scripts/build-standalone.mjs example.html
 ```
 
-生成された `dist/example.standalone.html` に `doc.css` と `doc.js` が埋め込まれ、
+スタイルのソースを変更したリリースでは `npm ci` と `npm run build:css` を実行し、
+生成した `assets/doc.css` がコミット済みのファイルと一致することも確認する。
+
+生成された `dist/example.standalone.html` に Bulma を含む `doc.css` と `doc.js` が埋め込まれ、
 CDN の URL に置き換わっていないことを確認する。必要な場合は変更内容に応じて
 表示やレビュー機能も確認する。
 
