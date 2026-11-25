@@ -6,8 +6,8 @@ AI に技術ドキュメントやレポートを **HTML で出力させる**た�
 - Bulma の本文・表・タグ・通知・ボックスを `assets/doc.css` に同梱。HTML から CSS と JavaScript を読むだけ
 - 同じ HTML を **1 ファイルに固めたビルド**も出せる（コピペ配布・メール添付向け）
 - ライト / ダーク自動切替、A4 印刷対応、日本語タイポグラフィ前提
-- 本文幅固定と左右余白固定の切替、余白サイズの調整
-- 目次の自動生成・スクロール追従、コードのコピーボタン、Mermaid 図、TeX 数式
+- 既定は左右の余白を固定して本文を画面幅に合わせて広げる（上限 72rem）。本文幅固定への切替、余白サイズの調整
+- 目次の自動生成・スクロール追従、コードのコピーボタン、Mermaid 図（拡大表示つき）、TeX 数式
 - `data-overmind` で開くと、見出し・段落・リスト・表の行・定義項目のコメントを下書き保存してレビュー JSON として送信
 
 ---
@@ -136,6 +136,10 @@ Mermaid / KaTeX / highlight.js は CDN 参照のまま残る（埋め込むと�
 `data-overmind` の `fileserver` で文書を開くと、見出し・段落・リスト項目・表の本文行・定義項目の右側に三点リーダーが現れる。
 コメントは入力中から `localStorage` に下書き保存され、サイドバーの「レビュー」タブで一覧できる。項目を押すと本文の該当箇所へ移動する。サイドバーの
 **レビューをサブミットする**で元の HTML と同じディレクトリへ保存される。
+
+レビュー中に文書が更新されても、下書きと保存済みコメントは再読み込み時に新しい本文へ引き継がれる。
+引用が一致する箇所や、書き換え後も本文がよく似た箇所へ付け直す。対象箇所が見つからないコメントは
+サイドバーの「対象が見つからないコメント」に残り、送信には含まれない。コピーして書き直すか、不要なら削除する。
 
 ```text
 report.html
@@ -297,7 +301,9 @@ Mermaid と数式は、該当する記法がページにあるときだけライ
 <html lang="ja" data-theme="dark">       <!-- 常にダーク -->
 <html lang="ja">                         <!-- OS 設定に追従（既定） -->
 
-<html lang="ja" data-doc-width="wide">   <!-- 46rem → 56rem -->
+<html lang="ja">                         <!-- 左右の余白を固定し、本文は画面幅に追従（既定・上限 72rem） -->
+<html lang="ja" data-doc-width="normal"> <!-- 本文幅を 46rem に固定 -->
+<html lang="ja" data-doc-width="wide">   <!-- 本文幅を 56rem に固定 -->
 <html lang="ja" data-doc-width="full">   <!-- 上限なし -->
 <html lang="ja" data-doc-font="serif">   <!-- 明朝系 -->
 ```
@@ -321,7 +327,8 @@ Bulma の組み込み設定は `styles/bulma.scss` にある。npm が必要な�
 ```css
 :root {
   --doc-c-accent: #1f5fa9;   /* リンク・目次の現在位置・強調 */
-  --doc-measure: 46rem;      /* 本文の最大幅 */
+  --doc-measure-max: 72rem;  /* 余白固定レイアウトでの本文の上限 */
+  --doc-measure-fixed: 46rem; /* 本文幅固定レイアウトの幅 */
   --doc-leading-content: 1.65; /* 本文の行送り */
   --doc-radius-md: 8px;      /* 角丸 */
 }

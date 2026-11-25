@@ -47,19 +47,21 @@
 | `mermaid.enable` | `'auto'` | `.mermaid` があるときだけ読み込む |
 | `mermaid.src` | jsDelivr の URL | Mermaid の読み込み元 |
 | `mermaid.config` | `{}` | `mermaid.initialize()` に渡す設定 |
+| `mermaid.zoom` | `true` | 描画した図の右上に拡大表示ボタンを付ける。`false` で無効 |
+| `mermaid.labels.*` | 日本語の既定文言 | 拡大表示のボタン名 |
 | `math.enable` | `'auto'` | 数式記法があるときだけ読み込む |
 | `math.engine` | `'katex'` | `'katex'` または `'mathjax'` |
 | `math.katex.delimiters` | `$$ $ \[ \(` | 数式の区切り記号 |
 | `highlight.enable` | `false` | `true` で highlight.js を読み込む |
 | `themeToggle.enable` | `false` | `true` で右上にライト/ダーク切替ボタン |
 | `themeToggle.storageKey` | `'doc-theme'` | 選択を保存する localStorage のキー |
-| `layoutToggle.enable` | `false` | `true` で右上にレイアウトと余白の設定メニュー |
+| `layoutToggle.enable` | `false` | `true` で右上にレイアウトと余白の設定メニュー。メニューがなくても既定は左右の余白を固定するレイアウト |
 | `layoutToggle.storageKey` | `'doc-layout'` | 選択を保存する localStorage のキー |
 | `review.enable` | `'auto'` | `data-overmind` のレビュー API があるときだけレビューを有効化。`false` で無効、`true` で接続エラーも表示 |
 | `review.contextURL` | `'/_data-overmind/review-context'` | 文書と既存レビューを取得する同一オリジン API |
 | `review.submitURL` | `'/_data-overmind/reviews'` | レビューを保存する同一オリジン API |
 | `review.selector` | `'h2, h3, h4, h5, h6, p, li, tbody > tr, dt'` | 本文内でレビュー対象にする要素のセレクタ |
-| `review.storagePrefix` | `'ai-doc-review:v1:'` | 下書き用 localStorage キーの接頭辞 |
+| `review.storagePrefix` | `'ai-doc-review:v1:'` | 下書き用 localStorage キーの接頭辞。キーは接頭辞と文書の URL から作り、文書が更新されても変わらない |
 | `review.saveDelay` | `300` | 入力後に下書きを保存するまでの待ち時間（ms） |
 | `review.labels.*` | 日本語の既定文言 | ボタン、状態、エラー表示の文言 |
 
@@ -88,7 +90,12 @@
 入れ子のリストでは各 `li` が対象になり、親項目の引用には子リストの文章を含めない。
 表はヘッダ行を除く `tbody` の各行を対象にする。`dt` の引用には、直後に連続する `dd` の説明も含める。
 
-`window.DocTemplate.reviewStatus()` は初期化後の状態（有効可否、コメント数、下書き有無、
+文書が更新された後に開くと、保存済みレビューとローカル下書きのコメントを新しい本文へ対応付け直す。
+ブロック ID と引用の一致、引用だけの一致、同じ ID のブロックで本文が似ている場合、
+同じ種類のブロックで本文がよく似ている場合の順に照合する。対応先がないコメントは
+「対象が見つからないコメント」としてローカルに保管し、送信には含めない。
+
+`window.DocTemplate.reviewStatus()` は初期化後の状態（有効可否、コメント数、対象が見つからないコメント数、
 レビューのパス）を返す。レビュー内容そのものは返さない。
 
 ### `$` を数式として扱いたくない場合
@@ -117,9 +124,11 @@ window.DOC_CONFIG = {
 <html lang="ja" data-theme="dark">       <!-- 常にダーク -->
 <html lang="ja">                         <!-- OS 設定に追従（既定） -->
 
-<html lang="ja" data-doc-width="wide">   <!-- 本文幅 46rem → 56rem -->
+<html lang="ja">                         <!-- 左右の余白を固定し、本文は画面幅に追従（既定・上限 72rem） -->
+<html lang="ja" data-doc-margin="large"> <!-- 左右の余白を大きくする（small / medium / large） -->
+<html lang="ja" data-doc-width="normal"> <!-- 本文幅を 46rem に固定 -->
+<html lang="ja" data-doc-width="wide">   <!-- 本文幅を 56rem に固定 -->
 <html lang="ja" data-doc-width="full">   <!-- 上限なし -->
-<html lang="ja" data-doc-layout="margins" data-doc-margin="large"> <!-- 左右の余白を固定、余白は大 -->
 
 <html lang="ja" data-doc-font="serif">   <!-- 明朝系。報告書向け -->
 ```
@@ -141,7 +150,8 @@ window.DOC_CONFIG = {
 ```css
 :root {
   --doc-c-accent: #1f5fa9;    /* リンク・目次の現在位置・強調 */
-  --doc-measure: 46rem;       /* 本文の最大幅 */
+  --doc-measure-max: 72rem;   /* 余白固定レイアウトでの本文の上限 */
+  --doc-measure-fixed: 46rem; /* 本文幅固定レイアウトの幅 */
   --doc-leading-content: 1.65; /* 本文の行送り */
   --doc-radius-md: 8px;       /* 角丸 */
   --doc-toc-width: 17rem;     /* 目次サイドバーの幅 */

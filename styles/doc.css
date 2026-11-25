@@ -78,7 +78,11 @@
   --doc-space-8: 4rem;
 
   /* --- 寸法 --- */
-  --doc-measure: 46rem;       /* 本文の最大幅（約 40 文字／全角） */
+  /* 既定は左右の余白（--doc-page-margin）を固定し、本文を画面幅に合わせて広げる。
+     広い画面で行が長くなりすぎないよう、本文幅は --doc-measure-max で頭打ちにする。 */
+  --doc-measure-max: 72rem;   /* 余白固定レイアウトでの本文の上限（約 70 文字／全角） */
+  --doc-measure-fixed: 46rem; /* 本文幅固定レイアウトの幅（約 40 文字／全角） */
+  --doc-measure: var(--doc-measure-max);
   --doc-page-margin: var(--doc-space-7);
   --doc-toc-width: 17rem;
   --doc-review-gutter: 2.4rem;
@@ -118,6 +122,7 @@
 
   /* --- 影 --- */
   --doc-shadow-sm: 0 1px 2px rgba(16, 22, 32, 0.06);
+  --doc-c-backdrop: rgba(8, 12, 18, 0.6);
   --doc-shadow-md: 0 2px 8px rgba(16, 22, 32, 0.08);
 
   /* --- 選択 / フォーカス --- */
@@ -127,10 +132,13 @@
 
 /* 明朝で読ませたい報告書向け: <html data-doc-font="serif"> */
 [data-doc-font="serif"] { --doc-font-body: var(--doc-font-serif); }
-/* 本文幅を広げたい場合: <html data-doc-width="wide"> */
+/* 本文幅を固定したい場合: <html data-doc-width="wide"> など */
+[data-doc-width="normal"] { --doc-measure: var(--doc-measure-fixed); }
 [data-doc-width="wide"] { --doc-measure: 56rem; }
 [data-doc-width="full"] { --doc-measure: none; }
-[data-doc-layout="margins"] { --doc-measure: none; }
+/* 閲覧者がレイアウトメニューで選んだ値は文書側の指定より優先する */
+[data-doc-layout="width"] { --doc-measure: var(--doc-measure-fixed); }
+[data-doc-layout="margins"] { --doc-measure: var(--doc-measure-max); }
 [data-doc-margin="small"] { --doc-page-margin: var(--doc-space-5); }
 [data-doc-margin="large"] { --doc-page-margin: var(--doc-space-8); }
 
@@ -880,6 +888,92 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 .mermaid:not([data-processed]) { color: transparent; min-height: 4rem; }
 .mermaid > svg { max-width: 100%; height: auto; }
 
+/* 図の拡大表示（doc.js が生成） */
+.doc-figure-zoomable { position: relative; }
+.doc-figure-zoom {
+  position: absolute;
+  top: var(--doc-space-2);
+  right: var(--doc-space-2);
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--doc-c-text-muted);
+  background: var(--doc-c-bg);
+  border: var(--doc-rule) solid var(--doc-c-border);
+  border-radius: var(--doc-radius-sm);
+  font-size: var(--doc-size-sm);
+  line-height: 1;
+  cursor: zoom-in;
+  opacity: 0.6;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.doc-figure-zoomable:hover > .doc-figure-zoom,
+.doc-figure-zoom:focus-visible { opacity: 1; color: var(--doc-c-text); }
+.doc-figure-zoom:focus-visible,
+.doc-figure-viewer-button:focus-visible { outline: 2px solid var(--doc-c-focus); outline-offset: 2px; }
+.doc-figure-placeholder { width: 100%; }
+
+.doc-figure-viewer-open { overflow: hidden; }
+.doc-figure-viewer {
+  width: calc(100vw - 2 * var(--doc-space-4));
+  max-width: none;
+  height: calc(100vh - 2 * var(--doc-space-4));
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--doc-c-text);
+  background: var(--doc-c-bg);
+  border: var(--doc-rule) solid var(--doc-c-border-strong);
+  border-radius: var(--doc-radius-md);
+  box-shadow: var(--doc-shadow-sm);
+  overflow: hidden;
+}
+.doc-figure-viewer:not([open]) { display: none; }
+.doc-figure-viewer::backdrop { background: var(--doc-c-backdrop); }
+.doc-figure-viewer-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--doc-space-2);
+  padding: var(--doc-space-2) var(--doc-space-3);
+  border-bottom: var(--doc-rule) solid var(--doc-c-border);
+  background: var(--doc-c-surface);
+}
+.doc-figure-viewer-button {
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 var(--doc-space-2);
+  color: var(--doc-c-text-muted);
+  background: var(--doc-c-bg);
+  border: var(--doc-rule) solid var(--doc-c-border-strong);
+  border-radius: var(--doc-radius-sm);
+  font: 600 var(--doc-size-sm)/1 var(--doc-font-sans);
+  cursor: pointer;
+}
+.doc-figure-viewer-button:hover { color: var(--doc-c-text); }
+.doc-figure-viewer-zoom { min-width: 4.5rem; font-variant-numeric: tabular-nums; }
+.doc-figure-viewer-close { margin-left: var(--doc-space-2); }
+.doc-figure-viewer-stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.doc-figure-viewer-stage.is-dragging { cursor: grabbing; }
+.doc-figure-viewer-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+.doc-figure-viewer-canvas > svg { display: block; max-width: none; }
+
 /* 数式 */
 .doc-body .katex-display,
 .doc-body mjx-container[display="true"] {
@@ -1228,6 +1322,33 @@ code, kbd, samp, pre, .doc-body .math-inline code {
 .doc-review-list-quote { color: var(--doc-c-text-muted); font-size: var(--doc-size-xs); }
 .doc-review-list-comment { margin-top: var(--doc-space-1); font-size: var(--doc-size-sm); }
 
+/* 文書の更新で対象箇所を失ったコメント */
+.doc-review-orphans[hidden] { display: none; }
+.doc-review-orphans { margin: 0 0 var(--doc-space-3); }
+.doc-review-orphan-title {
+  margin: 0 0 var(--doc-space-1);
+  color: var(--doc-c-warn);
+  font-size: var(--doc-size-xs);
+  font-weight: 700;
+}
+.doc-review-orphan-note {
+  margin: 0 0 var(--doc-space-2);
+  color: var(--doc-c-text-muted);
+  font-size: var(--doc-size-xs);
+  line-height: 1.55;
+}
+.doc-review-orphan-entry { cursor: default; border-style: dashed; }
+.doc-review-orphan-entry:hover { border-color: var(--doc-c-border); }
+.doc-review-orphan-entry .doc-review-list-quote { text-decoration: line-through; }
+.doc-review-orphan-comment { -webkit-line-clamp: 6; white-space: pre-wrap; }
+.doc-review-orphan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--doc-space-2);
+  margin-top: var(--doc-space-2);
+}
+
 .doc-review-menu-title {
   margin: 0 0 var(--doc-space-2);
   font-size: var(--doc-size-xs);
@@ -1504,6 +1625,8 @@ code, kbd, samp, pre, .doc-body .math-inline code {
   .doc-toc,
   .doc-theme-toggle,
   .doc-layout-control,
+  .doc-figure-zoom,
+  .doc-figure-viewer,
   .doc-copy-btn,
   .doc-review-trigger,
   .doc-review-panel,
