@@ -210,14 +210,14 @@ Mermaid / KaTeX / highlight.js は CDN 参照のまま残る。埋め込むと 1
 ## 設定を変えたいとき
 
 `doc.js` を読み込む**前**に `window.DOC_CONFIG` を置く。テーマ固定は `<html data-theme="dark">`、
-本文幅は `<html data-doc-width="wide">`、明朝体は `<html data-doc-font="serif">`。
+本文は既定で左右の余白を固定して画面幅に追従する（上限 72rem）。本文幅を固定するなら `<html data-doc-width="normal">`（46rem）や `"wide"`（56rem）、明朝体は `<html data-doc-font="serif">`。
 
 ```html
 <script>
   window.DOC_CONFIG = {
     highlight:   { enable: true },   // シンタックスハイライト（既定 off）
     themeToggle: { enable: true },   // ライト/ダーク切替ボタン（既定 off）
-    layoutToggle: { enable: true },  // 本文幅と余白の切替（既定 off）
+    layoutToggle: { enable: true },  // 余白固定 / 本文幅固定と余白量の切替メニュー（既定 off）
     review:      { enable: 'auto' }  // data-overmind 接続時だけブロックレビュー
   };
 </script>

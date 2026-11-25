@@ -52,7 +52,17 @@
       enable: 'auto',
       selector: '.mermaid',
       src: 'https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js',
-      config: {}
+      config: {},
+      zoom: true,
+      labels: {
+        open: '図を拡大表示',
+        viewer: '図の拡大表示',
+        zoomIn: '拡大',
+        zoomOut: '縮小',
+        reset: '画面に合わせる',
+        actual: '等倍で表示',
+        close: '閉じる'
+      }
     },
 
     math: {
@@ -119,9 +129,16 @@
         storageFailed: 'ローカル保存に失敗しました',
         submitted: 'レビューを保存しました',
         conflict: '文書またはレビューが更新されています。入力は保持されています。再読み込みしてください。',
+        sourceChanged: '文書が更新されています。入力はローカルに保持されています。再読み込みすると新しい文書へ引き継ぎます。',
         submitFailed: 'レビューを保存できませんでした。入力はローカルに保持されています。',
         unavailable: 'レビュー機能に接続できません',
-        staleReview: '保存済みレビューは以前の文書に対するものです。',
+        documentUpdated: '文書が更新されたため、コメントを新しい本文に対応付け直しました。確認してから送信してください。',
+        orphaned: '文書が更新され、{count} 件のコメントの対象箇所が見つからなくなりました。「対象が見つからないコメント」に保管しています。',
+        orphanTitle: '対象が見つからないコメント',
+        orphanCount: '対象が見つからないもの {count} 件',
+        orphanNote: '文書の更新で対象箇所がなくなりました。送信には含まれません。必要なら本文の該当箇所に書き直してから削除してください。',
+        copyOrphan: 'コメントをコピー',
+        deleteOrphan: '削除',
         mergedDraft: '別の保存内容とローカル下書きを統合しました。確認してから送信してください。'
       }
     }
@@ -479,8 +496,229 @@
       return window.mermaid.run({ nodes: nodes });
     }).catch(function (e) {
       warn('Mermaid の描画に失敗しました。ソースをそのまま表示します。', e);
-      nodes.forEach(function (n) { n.setAttribute('data-processed', 'failed'); });
+      nodes.forEach(function (n) {
+        if (!$(':scope > svg', n)) n.setAttribute('data-processed', 'failed');
+      });
+    }).then(function () {
+      if (CFG.mermaid.zoom === false) return;
+      nodes.forEach(function (n) {
+        try { addFigureZoom(n); } catch (e) { warn('図の拡大表示', e); }
+      });
     });
+  }
+
+  /* ----------------------------------------------------------------------
+     図の拡大表示（Mermaid）
+     描画済みの SVG を全画面のダイアログへ一時的に移し、拡大・縮小・移動できるようにする。
+     閉じると元の位置へ戻すので、SVG 内の id や style を複製しない。
+     ---------------------------------------------------------------------- */
+
+  var figureViewer = null;
+
+  function svgNaturalSize(svg) {
+    var box = svg.viewBox && svg.viewBox.baseVal;
+    if (box && box.width && box.height) return { width: box.width, height: box.height };
+    var rect = svg.getBoundingClientRect();
+    return { width: rect.width || 800, height: rect.height || 600 };
+  }
+
+  function createFigureViewer() {
+    var labels = CFG.mermaid.labels;
+    var dialog = document.createElement('dialog');
+    dialog.className = 'doc-figure-viewer';
+    dialog.setAttribute('aria-label', labels.viewer);
+
+    var toolbar = document.createElement('div');
+    toolbar.className = 'doc-figure-viewer-toolbar';
+    function tool(text, label, action) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'doc-figure-viewer-button';
+      btn.textContent = text;
+      btn.setAttribute('aria-label', label);
+      btn.title = label;
+      btn.dataset.action = action;
+      toolbar.appendChild(btn);
+      return btn;
+    }
+    tool('−', labels.zoomOut, 'out');
+    var zoomLabel = tool('100%', labels.reset, 'fit');
+    zoomLabel.classList.add('doc-figure-viewer-zoom');
+    tool('+', labels.zoomIn, 'in');
+    tool('1:1', labels.actual, 'actual');
+    var close = tool('×', labels.close, 'close');
+    close.classList.add('doc-figure-viewer-close');
+
+    var stage = document.createElement('div');
+    stage.className = 'doc-figure-viewer-stage';
+    var canvas = document.createElement('div');
+    canvas.className = 'doc-figure-viewer-canvas';
+    stage.appendChild(canvas);
+    dialog.appendChild(toolbar);
+    dialog.appendChild(stage);
+    document.body.appendChild(dialog);
+
+    var view = { scale: 1, x: 0, y: 0, size: null, source: null, svg: null, saved: null, placeholder: null, trigger: null };
+
+    function apply() {
+      canvas.style.transform = 'translate(' + view.x + 'px, ' + view.y + 'px) scale(' + view.scale + ')';
+      zoomLabel.textContent = Math.round(view.scale * 100) + '%';
+    }
+    function fit() {
+      var rect = stage.getBoundingClientRect();
+      var pad = 32;
+      view.scale = Math.min((rect.width - pad) / view.size.width, (rect.height - pad) / view.size.height, 4);
+      if (!(view.scale > 0)) view.scale = 1;
+      view.x = (rect.width - view.size.width * view.scale) / 2;
+      view.y = (rect.height - view.size.height * view.scale) / 2;
+      apply();
+    }
+    function zoomAt(factor, cx, cy) {
+      var next = Math.min(Math.max(view.scale * factor, 0.1), 20);
+      factor = next / view.scale;
+      view.x = cx - (cx - view.x) * factor;
+      view.y = cy - (cy - view.y) * factor;
+      view.scale = next;
+      apply();
+    }
+    function zoomCenter(factor) {
+      var rect = stage.getBoundingClientRect();
+      zoomAt(factor, rect.width / 2, rect.height / 2);
+    }
+
+    toolbar.addEventListener('click', function (event) {
+      var btn = event.target.closest('button');
+      if (!btn) return;
+      var action = btn.dataset.action;
+      if (action === 'close') dialog.close();
+      else if (action === 'in') zoomCenter(1.25);
+      else if (action === 'out') zoomCenter(0.8);
+      else if (action === 'fit') fit();
+      else if (action === 'actual') {
+        var rect = stage.getBoundingClientRect();
+        zoomAt(1 / view.scale, rect.width / 2, rect.height / 2);
+      }
+    });
+    stage.addEventListener('wheel', function (event) {
+      event.preventDefault();
+      var rect = stage.getBoundingClientRect();
+      zoomAt(Math.exp(-event.deltaY * 0.002), event.clientX - rect.left, event.clientY - rect.top);
+    }, { passive: false });
+
+    var drag = null;
+    var pointers = {};
+    function pinchDistance() {
+      var ids = Object.keys(pointers);
+      if (ids.length < 2) return 0;
+      var a = pointers[ids[0]], b = pointers[ids[1]];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+    stage.addEventListener('pointerdown', function (event) {
+      stage.setPointerCapture(event.pointerId);
+      pointers[event.pointerId] = { x: event.clientX, y: event.clientY };
+      drag = { x: event.clientX, y: event.clientY, vx: view.x, vy: view.y, pinch: pinchDistance(), scale: view.scale };
+      stage.classList.add('is-dragging');
+    });
+    stage.addEventListener('pointermove', function (event) {
+      if (!drag || !pointers[event.pointerId]) return;
+      pointers[event.pointerId] = { x: event.clientX, y: event.clientY };
+      var distance = pinchDistance();
+      if (distance && drag.pinch) {
+        var rect = stage.getBoundingClientRect();
+        var ids = Object.keys(pointers);
+        var cx = (pointers[ids[0]].x + pointers[ids[1]].x) / 2 - rect.left;
+        var cy = (pointers[ids[0]].y + pointers[ids[1]].y) / 2 - rect.top;
+        zoomAt((drag.scale * distance / drag.pinch) / view.scale, cx, cy);
+        return;
+      }
+      view.x = drag.vx + event.clientX - drag.x;
+      view.y = drag.vy + event.clientY - drag.y;
+      apply();
+    });
+    function endPointer(event) {
+      delete pointers[event.pointerId];
+      var remaining = Object.keys(pointers);
+      if (remaining.length) {
+        var p = pointers[remaining[0]];
+        drag = { x: p.x, y: p.y, vx: view.x, vy: view.y, pinch: 0, scale: view.scale };
+      } else {
+        drag = null;
+        stage.classList.remove('is-dragging');
+      }
+    }
+    stage.addEventListener('pointerup', endPointer);
+    stage.addEventListener('pointercancel', endPointer);
+    stage.addEventListener('dblclick', function (event) {
+      var rect = stage.getBoundingClientRect();
+      zoomAt(2, event.clientX - rect.left, event.clientY - rect.top);
+    });
+    dialog.addEventListener('keydown', function (event) {
+      if (event.key === '+' || event.key === '=') { event.preventDefault(); zoomCenter(1.25); }
+      else if (event.key === '-') { event.preventDefault(); zoomCenter(0.8); }
+      else if (event.key === '0') { event.preventDefault(); fit(); }
+    });
+    dialog.addEventListener('click', function (event) {
+      if (event.target === dialog) dialog.close();
+    });
+    dialog.addEventListener('close', function () {
+      if (!view.svg) return;
+      ['style', 'width', 'height'].forEach(function (name) {
+        if (view.saved[name] === null) view.svg.removeAttribute(name);
+        else view.svg.setAttribute(name, view.saved[name]);
+      });
+      view.placeholder.parentNode.replaceChild(view.svg, view.placeholder);
+      document.documentElement.classList.remove('doc-figure-viewer-open');
+      var trigger = view.trigger;
+      view.svg = null;
+      view.placeholder = null;
+      if (trigger) trigger.focus();
+    });
+
+    return {
+      open: function (figure, trigger) {
+        var svg = $(':scope > svg', figure);
+        if (!svg || dialog.open) return;
+        var rect = svg.getBoundingClientRect();
+        var placeholder = document.createElement('div');
+        placeholder.className = 'doc-figure-placeholder';
+        placeholder.style.height = rect.height + 'px';
+        view.size = svgNaturalSize(svg);
+        view.saved = {
+          style: svg.getAttribute('style'),
+          width: svg.getAttribute('width'),
+          height: svg.getAttribute('height')
+        };
+        svg.parentNode.replaceChild(placeholder, svg);
+        svg.removeAttribute('style');
+        svg.setAttribute('width', String(view.size.width));
+        svg.setAttribute('height', String(view.size.height));
+        canvas.appendChild(svg);
+        view.svg = svg;
+        view.placeholder = placeholder;
+        view.trigger = trigger;
+        document.documentElement.classList.add('doc-figure-viewer-open');
+        dialog.showModal();
+        fit();
+        close.focus();
+      }
+    };
+  }
+
+  function addFigureZoom(figure) {
+    if (!$(':scope > svg', figure) || $(':scope > .doc-figure-zoom', figure)) return;
+    if (typeof HTMLDialogElement !== 'function') return;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'doc-figure-zoom';
+    btn.textContent = '⤢';
+    btn.setAttribute('aria-label', CFG.mermaid.labels.open);
+    btn.title = CFG.mermaid.labels.open;
+    btn.addEventListener('click', function () {
+      if (!figureViewer) figureViewer = createFigureViewer();
+      figureViewer.open(figure, btn);
+    });
+    figure.classList.add('doc-figure-zoomable');
+    figure.appendChild(btn);
   }
 
   /* ----------------------------------------------------------------------
@@ -691,20 +929,163 @@
     return allowed.filter(function (block) { return block.anchor.quote !== ''; });
   }
 
+  // 下書きは文書の URL 単位で 1 つだけ持つ。文書が更新されてもキーが変わらないため、
+  // 書きかけのコメントを新しい本文へ引き継げる。
   function reviewStorageKey(context) {
-    return CFG.review.storagePrefix + encodeURIComponent(context.source.url || location.pathname) + ':' + context.source.sha256;
+    return CFG.review.storagePrefix + encodeURIComponent(context.source.url || location.pathname);
   }
 
-  function getLocalReviewDraft(key) {
+  function parseReviewDraft(raw) {
     try {
-      var raw = window.localStorage.getItem(key);
-      if (!raw) return null;
-      var draft = JSON.parse(raw);
-      if (!draft || draft.schemaVersion !== 1 || !Array.isArray(draft.comments)) return null;
+      var draft = raw ? JSON.parse(raw) : null;
+      if (!draft || (draft.schemaVersion !== 1 && draft.schemaVersion !== 2) || !Array.isArray(draft.comments)) return null;
+      if (!Array.isArray(draft.orphans)) draft.orphans = [];
       return draft;
     } catch (e) {
       return null;
     }
+  }
+
+  // 以前の版はキーに文書のハッシュを含めていた（<prefix><URL>:<sha256>）。
+  // 同じ文書の旧キーをすべて読み、更新日時が新しい順に返す。
+  function getLegacyReviewDrafts(key) {
+    var legacy = [];
+    try {
+      var storage = window.localStorage;
+      for (var i = 0; i < storage.length; i += 1) {
+        var name = storage.key(i);
+        if (!name || name.indexOf(key + ':') !== 0) continue;
+        var draft = parseReviewDraft(storage.getItem(name));
+        if (draft) legacy.push({ key: name, draft: draft });
+      }
+    } catch (e) { /* noop */ }
+    return legacy.sort(function (a, b) {
+      return String(b.draft.updatedAt || '').localeCompare(String(a.draft.updatedAt || ''));
+    });
+  }
+
+  function getLocalReviewDraft(key) {
+    try {
+      return parseReviewDraft(window.localStorage.getItem(key));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /* 文書の更新後にコメントを本文ブロックへ対応付け直す。
+     1. ブロック id と引用が一致する
+     2. 引用が一致する（見出し名の変更などで id だけが変わった）
+     3. 同じ id のブロックで本文が十分に似ている（段落の一部を書き換えた）
+     4. 同じ種類のブロックのうち本文が最もよく似ている
+     どれにも当てはまらないコメントは孤立コメントとして別に保管する。 */
+  var REVIEW_SIMILAR_SAME_ID = 0.5;
+  var REVIEW_SIMILAR_ANY = 0.7;
+
+  function reviewBigrams(text) {
+    var value = normalizedReviewText(text).slice(0, 2000);
+    var grams = {};
+    var count = 0;
+    for (var i = 0; i < value.length - 1; i += 1) {
+      var gram = value.substr(i, 2);
+      grams[gram] = (grams[gram] || 0) + 1;
+      count += 1;
+    }
+    return { grams: grams, count: count, text: value };
+  }
+
+  function reviewSimilarity(a, b) {
+    if (a.text === b.text) return 1;
+    if (!a.count || !b.count) return 0;
+    var shared = 0;
+    Object.keys(a.grams).forEach(function (gram) {
+      if (b.grams[gram]) shared += Math.min(a.grams[gram], b.grams[gram]);
+    });
+    return (2 * shared) / (a.count + b.count);
+  }
+
+  function reviewBlockType(anchorID) {
+    var match = /::([a-z0-9]+)-\d+(?:-\d+)?$/.exec(String(anchorID || ''));
+    return match ? match[1] : '';
+  }
+
+  function reanchorReviewComments(commentMap, blocks) {
+    var pending = Object.keys(commentMap).map(function (id) { return commentMap[id]; })
+      .filter(function (comment) { return normalizedReviewText(comment.comment) !== ''; })
+      .sort(function (a, b) { return String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')); });
+    var claimed = {};
+    var attached = {};
+    var moved = 0;
+    var blockByID = {};
+    blocks.forEach(function (block) { blockByID[block.anchor.id] = block; });
+
+    function attach(comment, block) {
+      claimed[block.anchor.id] = true;
+      if (comment.block.id !== block.anchor.id || normalizedReviewText(comment.block.quote) !== block.anchor.quote) moved += 1;
+      comment.block = block.anchor;
+      attached[comment.id] = comment;
+    }
+
+    function pass(pick) {
+      pending = pending.filter(function (comment) {
+        var block = pick(comment);
+        if (!block || claimed[block.anchor.id]) return true;
+        attach(comment, block);
+        return false;
+      });
+    }
+
+    pass(function (comment) {
+      var block = blockByID[comment.block.id];
+      return block && block.anchor.quote === normalizedReviewText(comment.block.quote) ? block : null;
+    });
+    pass(function (comment) {
+      var quote = normalizedReviewText(comment.block.quote);
+      var oldIndex = Number(comment.block.paragraphIndex) || 0;
+      var best = null;
+      blocks.forEach(function (block) {
+        if (claimed[block.anchor.id] || block.anchor.quote !== quote) return;
+        if (!best || Math.abs(block.anchor.paragraphIndex - oldIndex) < Math.abs(best.anchor.paragraphIndex - oldIndex)) best = block;
+      });
+      return best;
+    });
+    if (pending.length) {
+      var blockGrams = {};
+      var gramsFor = function (block) {
+        if (!blockGrams[block.anchor.id]) blockGrams[block.anchor.id] = reviewBigrams(block.anchor.quote);
+        return blockGrams[block.anchor.id];
+      };
+      pass(function (comment) {
+        var block = blockByID[comment.block.id];
+        if (!block || claimed[block.anchor.id]) return null;
+        return reviewSimilarity(reviewBigrams(comment.block.quote), gramsFor(block)) >= REVIEW_SIMILAR_SAME_ID ? block : null;
+      });
+      pass(function (comment) {
+        var source = reviewBigrams(comment.block.quote);
+        var type = reviewBlockType(comment.block.id);
+        var best = null;
+        var bestScore = REVIEW_SIMILAR_ANY;
+        blocks.forEach(function (block) {
+          if (claimed[block.anchor.id]) return;
+          if (type && reviewBlockType(block.anchor.id) !== type) return;
+          var score = reviewSimilarity(source, gramsFor(block));
+          if (score >= bestScore) { best = block; bestScore = score; }
+        });
+        return best;
+      });
+    }
+    return { comments: attached, orphans: pending, moved: moved };
+  }
+
+  function orphanReviewComment(comment, sourceSHA256, orphanedAt) {
+    return {
+      id: comment.id,
+      block: comment.block,
+      comment: comment.comment,
+      createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt,
+      sourceSHA256: comment.sourceSHA256 || sourceSHA256 || '',
+      orphanedAt: comment.orphanedAt || orphanedAt
+    };
   }
 
   function reviewCommentMap(comments) {
@@ -750,13 +1131,21 @@
     else delete state.status.dataset.status;
   }
 
+  function orphansForReviewState(state) {
+    return Object.keys(state.orphans).map(function (id) { return state.orphans[id]; })
+      .sort(function (a, b) { return String(b.orphanedAt || '').localeCompare(String(a.orphanedAt || '')); });
+  }
+
   function syncReviewMenu(state) {
     var count = commentsForReviewState(state).length;
-    state.count.textContent = count + ' 件のコメント';
+    var orphanCount = orphansForReviewState(state).length;
+    state.count.textContent = count + ' 件のコメント' +
+      (orphanCount ? '（' + CFG.review.labels.orphanCount.replace('{count}', String(orphanCount)) + '）' : '');
     state.submit.disabled = state.submitting || (count === 0 && !state.context.review.revision);
     state.submit.textContent = state.submitting ? CFG.review.labels.submitting : CFG.review.labels.submit;
     if (state.reviewTab) state.reviewTab.textContent = CFG.review.labels.reviewTab + ' (' + count + ')';
     if (state.commentList) renderReviewList(state);
+    if (state.orphanList) renderOrphanList(state);
   }
 
   function renderReviewList(state) {
@@ -796,6 +1185,69 @@
     });
   }
 
+  // 文書の更新で対象箇所が見つからなくなったコメント。サブミットには含めず、
+  // 閲覧者が内容を確認して書き直すか削除するまでローカルに残す。
+  function renderOrphanList(state) {
+    var host = state.orphanList;
+    while (host.firstChild) host.removeChild(host.firstChild);
+    var orphans = orphansForReviewState(state);
+    host.hidden = orphans.length === 0;
+    if (!orphans.length) return;
+
+    var heading = document.createElement('h3');
+    heading.className = 'doc-review-orphan-title';
+    heading.textContent = CFG.review.labels.orphanTitle + ' (' + orphans.length + ')';
+    var note = document.createElement('p');
+    note.className = 'doc-review-orphan-note';
+    note.textContent = CFG.review.labels.orphanNote;
+    host.appendChild(heading);
+    host.appendChild(note);
+
+    orphans.forEach(function (orphan) {
+      var item = document.createElement('div');
+      item.className = 'doc-review-list-entry doc-review-orphan-entry';
+      var quote = document.createElement('span');
+      quote.className = 'doc-review-list-quote';
+      quote.textContent = orphan.block && orphan.block.quote ? orphan.block.quote : CFG.review.labels.missingBlock;
+      var body = document.createElement('span');
+      body.className = 'doc-review-list-comment doc-review-orphan-comment';
+      body.textContent = orphan.comment;
+      var actions = document.createElement('div');
+      actions.className = 'doc-review-orphan-actions';
+      var copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'doc-review-close';
+      copy.textContent = CFG.review.labels.copyOrphan;
+      copy.addEventListener('click', function () {
+        var done = function (ok) {
+          copy.textContent = ok ? CFG.copyCode.copiedLabel : CFG.copyCode.failedLabel;
+          window.setTimeout(function () { copy.textContent = CFG.review.labels.copyOrphan; }, 1600);
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(orphan.comment).then(function () { done(true); },
+            function () { done(fallbackCopy(orphan.comment)); });
+        } else {
+          done(fallbackCopy(orphan.comment));
+        }
+      });
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'doc-review-delete';
+      remove.textContent = CFG.review.labels.deleteOrphan;
+      remove.addEventListener('click', function () {
+        delete state.orphans[orphan.id];
+        state.dirty = true;
+        flushReviewDraft(state);
+      });
+      actions.appendChild(copy);
+      actions.appendChild(remove);
+      item.appendChild(quote);
+      item.appendChild(body);
+      item.appendChild(actions);
+      host.appendChild(item);
+    });
+  }
+
   function flushReviewDraft(state) {
     if (state.saveTimer) {
       window.clearTimeout(state.saveTimer);
@@ -806,14 +1258,17 @@
       return;
     }
     var draft = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       sourceSHA256: state.context.source.sha256,
       baseRevision: state.context.review.revision,
       comments: commentsForReviewState(state),
+      orphans: orphansForReviewState(state),
       updatedAt: reviewTimestamp()
     };
     try {
       window.localStorage.setItem(state.storageKey, JSON.stringify(draft));
+      state.legacyKeys.forEach(function (key) { window.localStorage.removeItem(key); });
+      state.legacyKeys = [];
       state.dirty = false;
       state.storageFailed = false;
       setReviewStatus(state, CFG.review.labels.saved, 'saved');
@@ -1076,6 +1531,9 @@
     count.className = 'doc-review-count';
     var commentList = document.createElement('div');
     commentList.className = 'doc-review-list';
+    var orphanList = document.createElement('div');
+    orphanList.className = 'doc-review-orphans';
+    orphanList.hidden = true;
     var status = document.createElement('p');
     status.className = 'doc-review-status';
     status.setAttribute('role', 'status');
@@ -1087,6 +1545,7 @@
     menu.appendChild(title);
     menu.appendChild(count);
     menu.appendChild(commentList);
+    menu.appendChild(orphanList);
     menu.appendChild(status);
     menu.appendChild(submit);
     reviewPanel.appendChild(menu);
@@ -1096,6 +1555,7 @@
     state.menu = menu;
     state.count = count;
     state.commentList = commentList;
+    state.orphanList = orphanList;
     state.reviewTab = reviewTab;
     state.status = status;
     state.submit = submit;
@@ -1149,11 +1609,18 @@
       state.context = context;
       state.comments = reviewCommentMap(context.review.document ? context.review.document.comments : []);
       state.dirty = false;
-      try { window.localStorage.removeItem(state.storageKey); } catch (e) { /* noop */ }
+      if (orphansForReviewState(state).length) {
+        // 孤立コメントはサーバーへ送らないため、送信後もローカルに残す
+        state.dirty = true;
+        flushReviewDraft(state);
+      } else {
+        try { window.localStorage.removeItem(state.storageKey); } catch (e) { /* noop */ }
+      }
       state.blocks.forEach(function (block) { syncReviewTrigger(state, block); });
       setReviewStatus(state, CFG.review.labels.submitted + ': ' + context.review.path, 'success');
     }).catch(function (error) {
-      if (error.status === 409) setReviewStatus(state, CFG.review.labels.conflict, 'error');
+      if (error.status === 409 && error.code === 'source_changed') setReviewStatus(state, CFG.review.labels.sourceChanged, 'error');
+      else if (error.status === 409) setReviewStatus(state, CFG.review.labels.conflict, 'error');
       else setReviewStatus(state, CFG.review.labels.submitFailed, 'error');
       warn('レビューの保存に失敗しました。', error);
     }).then(function () {
@@ -1171,24 +1638,52 @@
     }
 
     reviewInitialization = fetchReviewContext().then(function (context) {
+      var currentSHA = context.source.sha256;
       var savedDocument = context.review.document;
-      var serverComments = [];
-      var stale = false;
-      if (savedDocument && savedDocument.source && savedDocument.source.sha256 === context.source.sha256) {
-        serverComments = savedDocument.comments || [];
-      } else if (savedDocument) {
-        stale = true;
-      }
+      var serverComments = savedDocument ? savedDocument.comments || [] : [];
+      var serverSHA = savedDocument && savedDocument.source ? savedDocument.source.sha256 : currentSHA;
       var storageKey = reviewStorageKey(context);
       var draft = getLocalReviewDraft(storageKey);
+      var legacy = getLegacyReviewDrafts(storageKey);
+      if (!draft && legacy.length) draft = legacy[0].draft;
       var draftMatchesRevision = !!draft && (draft.baseRevision || null) === (context.review.revision || null);
+      var draftSHA = draft ? draft.sourceSHA256 : currentSHA;
+      var tag = function (comments, sha) {
+        return (comments || []).map(function (comment) {
+          var copy = merge({}, comment);
+          copy.sourceSHA256 = sha;
+          return copy;
+        });
+      };
+      var candidates = draftMatchesRevision
+        ? reviewCommentMap(tag(draft.comments, draftSHA))
+        : mergeReviewComments(tag(serverComments, serverSHA), draft ? tag(draft.comments, draftSHA) : []);
+      // 保管済みの孤立コメントも候補に入れ、本文が元に戻った場合は付け直す
+      (draft ? draft.orphans : []).forEach(function (orphan) {
+        if (orphan && orphan.id && orphan.block && !candidates[orphan.id]) candidates[orphan.id] = merge({}, orphan);
+      });
+      var blocks = createReviewBlocks(content);
+      var anchored = reanchorReviewComments(candidates, blocks);
+      var now = reviewTimestamp();
+      var orphans = {};
+      var newOrphans = 0;
+      anchored.orphans.forEach(function (comment) {
+        if (!comment.orphanedAt) newOrphans += 1;
+        orphans[comment.id] = orphanReviewComment(comment, comment.sourceSHA256, now);
+      });
+      Object.keys(anchored.comments).forEach(function (id) {
+        var comment = anchored.comments[id];
+        delete comment.sourceSHA256;
+        delete comment.orphanedAt;
+      });
+      var documentChanged = (draft && draftSHA !== currentSHA) || (savedDocument && serverSHA !== currentSHA);
       var state = {
         context: context,
         storageKey: storageKey,
-        comments: draftMatchesRevision
-          ? reviewCommentMap(draft.comments)
-          : mergeReviewComments(serverComments, draft ? draft.comments : []),
-        blocks: createReviewBlocks(content),
+        legacyKeys: legacy.map(function (entry) { return entry.key; }),
+        comments: anchored.comments,
+        orphans: orphans,
+        blocks: blocks,
         menu: null,
         count: null,
         status: null,
@@ -1202,8 +1697,16 @@
       reviewState = state;
       if (!createReviewMenu(state)) return null;
       state.blocks.forEach(function (block, index) { createReviewPanel(state, block, index); });
-      if (stale) setReviewStatus(state, CFG.review.labels.staleReview, 'error');
-      else if (draft && !draftMatchesRevision) setReviewStatus(state, CFG.review.labels.mergedDraft, 'error');
+      if (documentChanged || anchored.moved || newOrphans || state.legacyKeys.length) {
+        // 対応付け直した結果を、次の再読み込みに備えてすぐ保存する
+        state.dirty = true;
+        flushReviewDraft(state);
+      }
+      if (newOrphans) {
+        setReviewStatus(state, CFG.review.labels.orphaned.replace('{count}', String(newOrphans)), 'error');
+      } else if (documentChanged) {
+        setReviewStatus(state, CFG.review.labels.documentUpdated, 'saving');
+      } else if (draft && !draftMatchesRevision) setReviewStatus(state, CFG.review.labels.mergedDraft, 'error');
       else if (draft) setReviewStatus(state, CFG.review.labels.saved, 'saved');
       else if (context.review.revision) setReviewStatus(state, CFG.review.labels.submitted, 'success');
       else setReviewStatus(state, CFG.review.labels.saved, 'saved');
@@ -1236,6 +1739,7 @@
       sourcePath: reviewState.context.source.path,
       reviewPath: reviewState.context.review.path,
       commentCount: commentsForReviewState(reviewState).length,
+      orphanCount: orphansForReviewState(reviewState).length,
       submitting: reviewState.submitting,
       storageFailed: reviewState.storageFailed
     };
@@ -1279,9 +1783,13 @@
     var root = document.documentElement;
     var stored = null;
     try { stored = JSON.parse(window.localStorage.getItem(CFG.layoutToggle.storageKey)); } catch (e) { /* noop */ }
-    var mode = stored && stored.mode === 'margins' ? 'margins' : 'width';
-    var margin = stored && ['small', 'medium', 'large'].indexOf(stored.margin) >= 0 ? stored.margin : 'medium';
-    root.dataset.docLayout = mode;
+    // 保存済みの選択がなければ文書側の指定（data-doc-layout / data-doc-width）を尊重する。
+    // どちらもなければ CSS の既定（左右の余白を固定）になる。
+    var storedMode = stored && (stored.mode === 'margins' || stored.mode === 'width') ? stored.mode : null;
+    var mode = storedMode || root.dataset.docLayout || (root.dataset.docWidth ? 'width' : 'margins');
+    var margin = stored && ['small', 'medium', 'large'].indexOf(stored.margin) >= 0
+      ? stored.margin : (root.dataset.docMargin || 'medium');
+    if (storedMode) root.dataset.docLayout = storedMode;
     root.dataset.docMargin = margin;
 
     var control = document.createElement('details');
@@ -1312,7 +1820,7 @@
       });
       menu.appendChild(fieldset);
     }
-    addGroup('レイアウト', 'doc-layout-mode', [['width', '本文の幅を固定'], ['margins', '左右の余白を固定']], mode);
+    addGroup('レイアウト', 'doc-layout-mode', [['margins', '左右の余白を固定'], ['width', '本文の幅を固定']], mode);
     addGroup('余白の大きさ', 'doc-layout-margin', [['small', '小'], ['medium', '中'], ['large', '大']], margin);
     menu.addEventListener('change', function () {
       var selectedMode = $('input[name="doc-layout-mode"]:checked', menu);
